@@ -1,0 +1,23 @@
+# config/default_config.yaml
+save_dir: "detection_results"
+default_classes: ["bright blue-purple cube in the lower right corner", "cube", ""]
+model_path: "yolov8s-world.pt"
+confidence_threshold: 0.1
+max_detections: 20
+display_stats: true
+auto_save: true
+
+self.sam_checkpoint : "sam_vit_h_01ec64.pth"  # SAM权重文件路径
+self.sam_model_type : "vit_h"  # vit_b, vit_l, vit_h
+
+
+# 相机到机械手的旋转矩阵
+R_cam2gripper: 
+  - [9.99999699e-01, -7.70058018e-04, -9.75410307e-05]
+  - [7.69941203e-04, 9.99998993e-01, -1.19203713e-03]
+  - [9.84588702e-05, 1.19196167e-03, 9.99999285e-01]
+
+# 相机到机械手的平移向量
+t_cam2gripper: [0.012674, -0.116914, -0.000172]
+
+#相机内参矩阵
