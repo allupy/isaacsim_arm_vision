@@ -1,23 +1,43 @@
-# config/default_config.yaml
+# 默认配置(Isaac Sim 版)
+# 路径说明:model_path / sam_checkpoint 支持相对路径,
+# 按 当前目录 → 项目根目录 → ../vision 顺序查找
+
 save_dir: "detection_results"
-default_classes: ["bright blue-purple cube in the lower right corner", "cube", ""]
+default_classes: ["cube"]
 model_path: "yolov8s-world.pt"
 confidence_threshold: 0.1
 max_detections: 20
 display_stats: true
 auto_save: true
 
-self.sam_checkpoint : "sam_vit_h_01ec64.pth"  # SAM权重文件路径
-self.sam_model_type : "vit_h"  # vit_b, vit_l, vit_h
+# SAM 分割模型
+sam_checkpoint: "sam_vit_h_4b8939.pth"   # vit_h 精度高;追求速度可换 sam_vit_b_01ec64.pth
+sam_model_type: "vit_h"                  # 可选 vit_b / vit_l / vit_h
 
+# 抓取是否使用深度估计出的 z 坐标(False 时抓取平面按 z=0 处理)
+use_estimated_z: false
 
-# 相机到机械手的旋转矩阵
-R_cam2gripper: 
+# 相机内参(D455 1280x720)
+camera_matrix:
+  - [634.165821427196, 0.0, 636.8610491500791]
+  - [0.0, 634.0985503275863, 357.7665813647669]
+  - [0.0, 0.0, 1.0]
+dist_coeffs: [0.0028141594696008986, -0.006156795039937514,
+              -0.0006492150364271804, -0.0012946439050663806, 0.003993861075015315]
+
+# 机械臂参数(不写则用代码内默认值)
+arm:
+  home_position: [0.3, 0.3, 0.5]
+  pick_height: 0.25        # 抓取时末端相对物体的高度偏移
+  approach_height: 0.4     # 接近时末端相对物体的高度偏移
+  safe_height: 0.5         # 长距离移动的安全高度
+  arc_radius: 0.2          # 圆弧移动半径
+  gripper_open: 0.8        # 夹爪"宽度"参数(映射为关节值 0.8-width)
+  gripper_close: 0.0
+
+# 相机到机械手外参(手眼标定结果)
+R_cam2gripper:
   - [9.99999699e-01, -7.70058018e-04, -9.75410307e-05]
   - [7.69941203e-04, 9.99998993e-01, -1.19203713e-03]
   - [9.84588702e-05, 1.19196167e-03, 9.99999285e-01]
-
-# 相机到机械手的平移向量
 t_cam2gripper: [0.012674, -0.116914, -0.000172]
-
-#相机内参矩阵
