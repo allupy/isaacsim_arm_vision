@@ -14,6 +14,15 @@ auto_save: true
 sam_checkpoint: "sam_vit_h_4b8939.pth"   # vit_h 精度高;追求速度可换 sam_vit_b_01ec64.pth
 sam_model_type: "vit_h"                  # 可选 vit_b / vit_l / vit_h
 
+# 机械臂控制方案:
+#   "moveit" = MoveItPy/OMPL 整条轨迹规划(推荐,需 moveit_ws 环境;规划失败自动回退 ik)
+#   "ik"     = IK 服务逐点模式(旧方案)
+controller: "moveit"
+
+# 两阶段抓取:先运动到目标上方 → 再次检测+位姿估计 → 按新估计执行抓取
+# 距离更近、视角更正,能显著提高抓取准确率
+two_stage_grasp: true
+
 # 抓取是否使用深度估计出的 z 坐标(False 时抓取平面按 z=0 处理)
 use_estimated_z: false
 

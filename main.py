@@ -100,7 +100,7 @@ class EnhancedDetectorNode(Node):
         # 模块初始化
         self.io_manager = IOManager(config.save_dir)
         self.keyboard_handler = KeyboardHandler()
-        self.arm_controller = ArmControllerWithGripper(self, params=config.arm)
+        self.arm_controller = self._create_arm_controller()
 
         self.class_manager = ClassManager(config.default_classes)
         self.class_manager.on_classes_changed = self._on_classes_changed
@@ -116,6 +116,21 @@ class EnhancedDetectorNode(Node):
         self.rgb_sub = self.create_subscription(Image, '/rgb', self.rgb_callback, 10)
         self.depth_sub = self.create_subscription(Image, '/depth', self.depth_callback, 10)
         self.get_logger().info("已启用RGB-D订阅（无时间同步）")
+
+    def _create_arm_controller(self):
+        """按配置创建机械臂控制器:moveit(MoveItPy 规划)或 ik(IK 服务),moveit 失败自动降级"""
+        mode = getattr(self.config, 'controller', 'ik')
+        if mode == 'moveit':
+            try:
+                from modules.moveit_controller import MoveItArmController
+                controller = MoveItArmController(self, params=self.config.arm)
+                self.get_logger().info("机械臂控制器: MoveItPy(OMPL 规划)")
+                return controller
+            except Exception as e:
+                self.get_logger().error(f"MoveItPy 控制器初始化失败: {e},降级为 IK 模式")
+        controller = ArmControllerWithGripper(self, params=self.config.arm)
+        self.get_logger().info("机械臂控制器: IK 服务")
+        return controller
 
     def rgb_callback(self, msg):
         try:
@@ -256,7 +271,7 @@ class EnhancedDetectorNode(Node):
 
     def _print_help(self):
         print("\n📋 快捷键:")
-        print("  [d] 实时检测当前帧并抓取最优目标")
+        print("  [d] 实时检测当前帧并抓取最优目标(可配两阶段)")
         print("  [s] 拍照并保存检测结果")
         print("  [c] 修改检测类别")
         print("  [r] 机械臂归位")
@@ -330,10 +345,45 @@ class EnhancedDetectorNode(Node):
 
         try:
             x, y, z = self.pose_estimation(rgb, depth, robot_pose, mask)
-            print(f"物体位置在({x:.3f},{y:.3f},{z:.3f})")
+            print(f"[阶段1] 物体位置在({x:.3f},{y:.3f},{z:.3f})")
 
             # 抓取 z:默认取 0(桌面高度);use_estimated_z=True 时用深度估计值
             grasp_z = z if self.config.use_estimated_z else 0.0
+
+            # ------------------------------------------------------------------
+            # 两阶段抓取:先运动到目标上方,再一次检测+位姿估计。
+            # 距离更近、视角更正,第二阶段的估计误差显著更小。
+            # ------------------------------------------------------------------
+            if getattr(self.config, 'two_stage_grasp', False):
+                above = [x, y, grasp_z + self.arm_controller.approach_height]
+                print(f"[两阶段] 运动到目标上方: {above}")
+                if not self.arm_controller.move_to_position(above, duration=3.0):
+                    print("[两阶段] 运动失败,使用第一阶段估计继续")
+                else:
+                    time.sleep(1.0)  # 等待机械臂稳定、图像刷新
+                    rgb2, depth2, pose2 = self.get_current_frames()
+                    if rgb2 is None or depth2 is None or pose2 is None:
+                        print("[两阶段] 第二次取帧失败,沿用第一阶段结果")
+                    else:
+                        result2, detections2 = self.detection_manager.detect(rgb2)
+                        if result2 is not None:
+                            self.result_img = result2.copy()
+                            self.show_result = True
+                            self.result_show_start = time.time()
+                            self._result_sent = False
+                        if not detections2:
+                            print("[两阶段] 第二次检测无目标,沿用第一阶段结果")
+                        else:
+                            best2 = max(detections2, key=lambda d: d.confidence)
+                            if best2.mask is not None and best2.mask.any():
+                                try:
+                                    x, y, z = self.pose_estimation(rgb2, depth2, pose2, best2.mask)
+                                    grasp_z = z if self.config.use_estimated_z else 0.0
+                                    print(f"[阶段2] 重新估计物体位置({x:.3f},{y:.3f},{z:.3f})")
+                                except Exception as e:
+                                    print(f"[两阶段] 重新估计失败({e}),沿用第一阶段结果")
+                            else:
+                                print("[两阶段] 第二次检测无掩码,沿用第一阶段结果")
 
             if self.arm_controller.execute_pick_place(
                 [x, y, grasp_z],
@@ -448,6 +498,13 @@ class EnhancedDetectorNode(Node):
 
     def shutdown(self):
         print("\n🧹 正在清理资源...")
+        # MoveItPy 需要在 rclpy 关闭前清理
+        shutdown_arm = getattr(self.arm_controller, 'shutdown', None)
+        if callable(shutdown_arm):
+            try:
+                shutdown_arm()
+            except Exception:
+                pass
         self.exit_event.set()
         if self.display_proc.is_alive():
             self.display_proc.join(timeout=3)
