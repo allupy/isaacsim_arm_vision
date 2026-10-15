@@ -148,15 +148,18 @@ class MoveItArmController(ArmControllerWithGripper):
     # 覆写运动原语
     # ------------------------------------------------------------------
     def move_to_position_direct(self, position: List[float], gripper_position: Optional[float] = None,
-                                duration: float = 1.0, orientation_type: str = "down") -> bool:
+                                duration: float = 1.0, orientation_type: str = "down",
+                                orientation: Optional[List[float]] = None) -> bool:
         """自由空间运动:MoveItPy 规划整条轨迹;失败时回退到父类的 IK 单点模式"""
-        traj = self._plan_to_pose(position, self.get_fixed_orientation(orientation_type))
+        orient = self._resolve_orientation(orientation_type, orientation)
+        traj = self._plan_to_pose(position, orient)
         if traj is not None and len(traj.points) > 0:
             self.current_position = list(position)
             return self._send_trajectory(traj, gripper_position)
 
         self.node.get_logger().warn("MoveIt 规划失败,回退到 IK 单点模式")
-        return super().move_to_position_direct(position, gripper_position, duration, orientation_type)
+        return super().move_to_position_direct(position, gripper_position, duration,
+                                                orientation_type, orientation)
 
     def move_in_arc_simple(self, start_pos: List[float], end_pos: List[float], radius: float = 0.2,
                            clockwise: bool = True, gripper_position: Optional[float] = None,

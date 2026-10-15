@@ -23,11 +23,44 @@ from modules.io_manager import IOManager
 from modules.class_manager import ClassManager
 from modules.utils import (quaternion_to_euler, build_transform_from_matrix,
                            build_transform, quaternion_to_matrix)
+from modules.pose_estimation import estimate_object_pose
 from modules.arm_manager import ArmControllerWithGripper
 from config.config import DetectorConfig
 
 # 实时帧发送到显示进程的节流间隔(秒)
 LIVE_SEND_INTERVAL = 1.0 / 15
+
+
+class VideoRecorder:
+    """轻量视频录制(cv2.VideoWriter,无头可用)"""
+
+    def __init__(self, path, fps=15.0, size=(1280, 720)):
+        self.path = path
+        self.fps = fps
+        self.size = size
+        self.writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'mp4v'),
+                                      fps, size)
+        self._last = 0.0
+        self.frames = 0
+
+    def write(self, img, throttle=True):
+        if img is None:
+            return
+        now = time.time()
+        if throttle and now - self._last < 1.0 / self.fps:
+            return
+        self._last = now
+        if img.shape[1] != self.size[0] or img.shape[0] != self.size[1]:
+            img = cv2.resize(img, self.size)
+        self.writer.write(img)
+        self.frames += 1
+
+    def release(self):
+        try:
+            self.writer.release()
+            print(f"🎥 视频已保存: {self.path} ({self.frames} 帧)")
+        except Exception:
+            pass
 
 
 def display_process(image_queue, exit_event, window_name="Detection"):
@@ -57,10 +90,11 @@ def display_process(image_queue, exit_event, window_name="Detection"):
 class EnhancedDetectorNode(Node):
     """ROS2 检测 + 抓取主节点"""
 
-    def __init__(self, config: DetectorConfig):
+    def __init__(self, config: DetectorConfig, interactive: bool = True):
         super().__init__('enhanced_detector')
 
         self.config = config
+        self.interactive = interactive
         self.bridge = CvBridge()
 
         # TF(末端执行器位姿)
@@ -87,19 +121,27 @@ class EnhancedDetectorNode(Node):
         self._result_sent = False
         self._last_live_send = 0.0
 
-        # 显示进程(spawn 方式与 ROS2 兼容)
-        self.mp_context = mp.get_context('spawn')
-        self.image_queue = self.mp_context.Queue(maxsize=5)
-        self.exit_event = self.mp_context.Event()
-        self.display_proc = self.mp_context.Process(
-            target=display_process,
-            args=(self.image_queue, self.exit_event, "Detection")
-        )
-        self.display_proc.start()
+        # 视频录制(无头/交互模式均可用)
+        self.recorder = None
+        if getattr(config, 'record_video', False):
+            video_path = getattr(config, 'video_path', 'detection_results/session.mp4')
+            self.recorder = VideoRecorder(video_path, fps=15.0, size=(1280, 720))
+
+        # 显示进程(仅交互模式;无头环境没有 X11)
+        if self.interactive:
+            self.mp_context = mp.get_context('spawn')
+            self.image_queue = self.mp_context.Queue(maxsize=5)
+            self.exit_event = self.mp_context.Event()
+            self.display_proc = self.mp_context.Process(
+                target=display_process,
+                args=(self.image_queue, self.exit_event, "Detection")
+            )
+            self.display_proc.start()
 
         # 模块初始化
         self.io_manager = IOManager(config.save_dir)
-        self.keyboard_handler = KeyboardHandler()
+        if self.interactive:
+            self.keyboard_handler = KeyboardHandler()
         self.arm_controller = self._create_arm_controller()
 
         self.class_manager = ClassManager(config.default_classes)
@@ -135,6 +177,12 @@ class EnhancedDetectorNode(Node):
     def rgb_callback(self, msg):
         try:
             self.current_rgb = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            # 录制:检测结果展示期录结果帧,其余时间录实时帧
+            if self.recorder is not None:
+                if self.show_result and self.result_img is not None:
+                    self.recorder.write(self.result_img)
+                else:
+                    self.recorder.write(self.current_rgb)
         except Exception as e:
             self.get_logger().error(f"RGB回调失败: {e}")
 
@@ -158,7 +206,9 @@ class EnhancedDetectorNode(Node):
             return False
 
     def _manage_display(self):
-        """结果帧只发一次;实时帧按 LIVE_SEND_INTERVAL 节流发送"""
+        """结果帧只发一次;实时帧按 LIVE_SEND_INTERVAL 节流发送(仅交互模式)"""
+        if not self.interactive:
+            return
         current_time = time.time()
 
         if self.show_result and self.result_img is not None:
@@ -220,42 +270,8 @@ class EnhancedDetectorNode(Node):
             return False, None
 
     # ------------------------------------------------------------------
-    # 位姿估计
+    # 位姿估计:见 modules/pose_estimation.py(6D,含方块边缘朝向)
     # ------------------------------------------------------------------
-    def pose_estimation(self, rgb, depth, ee_in_base, mask):
-        """掩码质心 + 深度 → 相机系 3D 点 → 基座系坐标"""
-        camera_matrix = self.camera_matrix
-
-        # 1. 掩码质心像素坐标
-        M = cv2.moments(mask)
-        cx = int(M['m10'] / M['m00'])
-        cy = int(M['m01'] / M['m00'])
-
-        # 2. 深度
-        Z = depth[cy, cx]
-
-        # 3. 像素 → 相机系
-        fx = camera_matrix[0, 0]
-        fy = camera_matrix[1, 1]
-        cx_cam = camera_matrix[0, 2]
-        cy_cam = camera_matrix[1, 2]
-        X_cam = (cx - cx_cam) * Z / fx
-        Y_cam = (cy - cy_cam) * Z / fy
-
-        point_camera = np.array([X_cam, Y_cam, Z, 1.0]).reshape(4, 1)
-
-        # 4. 相机系 → 基座系:T_base_ee @ T_ee_cam @ p_cam
-        R_ee2base = ee_in_base['rotation_matrix']
-        t_ee2base = np.array(ee_in_base['position']).flatten()
-        T_ee2base = build_transform_from_matrix(t_ee2base, R_ee2base)
-
-        t_cam2ee = self.t_cam2gripper.flatten()
-        T_cam2ee = build_transform_from_matrix(t_cam2ee, self.R_cam2gripper)
-
-        T_cam2base = T_ee2base @ T_cam2ee
-        point_base = (T_cam2base @ point_camera)[:3].flatten()
-
-        return tuple(point_base)
 
     # ------------------------------------------------------------------
     # 命令处理
@@ -266,7 +282,8 @@ class EnhancedDetectorNode(Node):
         print("=" * 60)
         print(f"\n当前检测类别: {self.class_manager.format_classes_display()}")
         print(f"保存目录: {self.io_manager.save_dir.absolute()}")
-        print(f"显示进程PID: {self.display_proc.pid}")
+        if self.interactive:
+            print(f"显示进程PID: {self.display_proc.pid}")
         self._print_help()
 
     def _print_help(self):
@@ -310,92 +327,83 @@ class EnhancedDetectorNode(Node):
         else:
             print(f"\n❌ 未知命令: {command}，输入 'h' 查看帮助")
 
-    def _command_detect(self):
-        """实时检测 + 抓取置信度最高的目标"""
-        rgb, depth, robot_pose = self.get_current_frames()
-        if rgb is None:
-            print("❌ 错误: 没有可用的图像帧")
-            return
-        if depth is None:
-            print("❌ 错误: 没有可用的深度帧")
-            return
-        if robot_pose is None:
-            print("❌ 错误: 未能获取机械臂位姿(TF不可用),无法做位姿估计")
-            return
-
-        print("\n🎯 运行实时检测...")
+    def _estimate_from_frames(self, rgb, depth, robot_pose):
+        """检测 + 分割 + 6D 估计,返回 (x, y, z, quat, result_img) 或 None"""
         result_img, detections = self.detection_manager.detect(rgb)
-
-        if result_img is not None:
+        if result_img is not None and self.interactive:
             self.result_img = result_img.copy()
             self.show_result = True
             self.result_show_start = time.time()
             self._result_sent = False
-            print(f"✅ 检测完成，找到 {len(detections)} 个目标（将显示{self.result_show_duration}秒）")
+        if not detections:
+            return None
+        best = max(detections, key=lambda d: d.confidence)
+        if best.mask is None or not best.mask.any():
+            print(f"警告: 检测到{best.class_name}但没有掩码，无法进行姿态估计")
+            return None
+        x, y, z, quat = estimate_object_pose(
+            rgb, depth, robot_pose, best.mask,
+            self.camera_matrix, self.R_cam2gripper, self.t_cam2gripper,
+            yaw_offset_deg=getattr(self.config, 'grasp_yaw_offset_deg', 0.0),
+        )
+        return x, y, z, quat, result_img
 
-        if len(detections) == 0:
-            return
+    def _command_detect(self) -> bool:
+        """实时检测 + 抓取置信度最高的目标(含两阶段位姿估计)"""
+        rgb, depth, robot_pose = self.get_current_frames()
+        if rgb is None:
+            print("❌ 错误: 没有可用的图像帧")
+            return False
+        if depth is None:
+            print("❌ 错误: 没有可用的深度帧")
+            return False
+        if robot_pose is None:
+            print("❌ 错误: 未能获取机械臂位姿(TF不可用),无法做位姿估计")
+            return False
 
-        best_detection = max(detections, key=lambda d: d.confidence)
-        mask = best_detection.mask
+        print("\n🎯 运行实时检测...")
+        est = self._estimate_from_frames(rgb, depth, robot_pose)
+        if est is None:
+            print("❌ 未检测到可抓取目标")
+            return False
+        x, y, z, quat, _ = est
+        print(f"[阶段1] 物体位置({x:.3f},{y:.3f},{z:.3f}) 抓取朝向 quat=["
+              f"{quat[0]:.2f},{quat[1]:.2f},{quat[2]:.2f},{quat[3]:.2f}]")
 
-        if mask is None or not mask.any():
-            print(f"警告: 检测到{best_detection.class_name}但没有掩码，无法进行姿态估计")
-            return
+        # 抓取 z:默认取 0(桌面高度);use_estimated_z=True 时用深度估计值
+        grasp_z = z if self.config.use_estimated_z else 0.0
 
-        try:
-            x, y, z = self.pose_estimation(rgb, depth, robot_pose, mask)
-            print(f"[阶段1] 物体位置在({x:.3f},{y:.3f},{z:.3f})")
-
-            # 抓取 z:默认取 0(桌面高度);use_estimated_z=True 时用深度估计值
-            grasp_z = z if self.config.use_estimated_z else 0.0
-
-            # ------------------------------------------------------------------
-            # 两阶段抓取:先运动到目标上方,再一次检测+位姿估计。
-            # 距离更近、视角更正,第二阶段的估计误差显著更小。
-            # ------------------------------------------------------------------
-            if getattr(self.config, 'two_stage_grasp', False):
-                above = [x, y, grasp_z + self.arm_controller.approach_height]
-                print(f"[两阶段] 运动到目标上方: {above}")
-                if not self.arm_controller.move_to_position(above, duration=3.0):
-                    print("[两阶段] 运动失败,使用第一阶段估计继续")
-                else:
-                    time.sleep(1.0)  # 等待机械臂稳定、图像刷新
-                    rgb2, depth2, pose2 = self.get_current_frames()
-                    if rgb2 is None or depth2 is None or pose2 is None:
-                        print("[两阶段] 第二次取帧失败,沿用第一阶段结果")
-                    else:
-                        result2, detections2 = self.detection_manager.detect(rgb2)
-                        if result2 is not None:
-                            self.result_img = result2.copy()
-                            self.show_result = True
-                            self.result_show_start = time.time()
-                            self._result_sent = False
-                        if not detections2:
-                            print("[两阶段] 第二次检测无目标,沿用第一阶段结果")
-                        else:
-                            best2 = max(detections2, key=lambda d: d.confidence)
-                            if best2.mask is not None and best2.mask.any():
-                                try:
-                                    x, y, z = self.pose_estimation(rgb2, depth2, pose2, best2.mask)
-                                    grasp_z = z if self.config.use_estimated_z else 0.0
-                                    print(f"[阶段2] 重新估计物体位置({x:.3f},{y:.3f},{z:.3f})")
-                                except Exception as e:
-                                    print(f"[两阶段] 重新估计失败({e}),沿用第一阶段结果")
-                            else:
-                                print("[两阶段] 第二次检测无掩码,沿用第一阶段结果")
-
-            if self.arm_controller.execute_pick_place(
-                [x, y, grasp_z],
-                place_position=[0.0, -0.5, 0.10],
-            ):
-                print("✅ 抓取完成")
+        # ------------------------------------------------------------------
+        # 两阶段抓取:先运动到目标上方,再一次检测+位姿估计。
+        # 距离更近、视角更正,第二阶段的估计误差显著更小。
+        # ------------------------------------------------------------------
+        if getattr(self.config, 'two_stage_grasp', False):
+            above = [x, y, grasp_z + self.arm_controller.approach_height]
+            print(f"[两阶段] 运动到目标上方: {above}")
+            if not self.arm_controller.move_to_position(above, duration=3.0):
+                print("[两阶段] 运动失败,使用第一阶段估计继续")
             else:
-                print("❌ 抓取失败")
-        except ZeroDivisionError as e:
-            print(f"计算姿态时出错: {e}，掩码可能有问题")
-        except Exception as e:
-            print(f"姿态估计失败: {e}")
+                time.sleep(1.0)  # 等待机械臂稳定、图像刷新
+                rgb2, depth2, pose2 = self.get_current_frames()
+                if rgb2 is None or depth2 is None or pose2 is None:
+                    print("[两阶段] 第二次取帧失败,沿用第一阶段结果")
+                else:
+                    est2 = self._estimate_from_frames(rgb2, depth2, pose2)
+                    if est2 is None:
+                        print("[两阶段] 第二次估计失败,沿用第一阶段结果")
+                    else:
+                        x, y, z, quat, _ = est2
+                        grasp_z = z if self.config.use_estimated_z else 0.0
+                        print(f"[阶段2] 重新估计({x:.3f},{y:.3f},{z:.3f}) quat=["
+                              f"{quat[0]:.2f},{quat[1]:.2f},{quat[2]:.2f},{quat[3]:.2f}]")
+
+        ok = self.arm_controller.execute_pick_place(
+            [x, y, grasp_z],
+            place_position=[0.0, -0.5, 0.10],
+            grasp_quat=list(quat),
+        )
+        print("✅ 抓取完成" if ok else "❌ 抓取失败")
+        return ok
 
     def _command_save(self):
         """拍照并保存检测结果"""
@@ -466,7 +474,26 @@ class EnhancedDetectorNode(Node):
     # ------------------------------------------------------------------
     # 主循环与清理
     # ------------------------------------------------------------------
-    def run(self):
+    def run(self, once: bool = False):
+        """once=True: 无头单次模式——等待数据就绪后执行一轮检测+抓取即退出"""
+        if once:
+            print("🎬 无头单次模式:等待图像与TF就绪...")
+            deadline = time.time() + 60
+            while time.time() < deadline:
+                rclpy.spin_once(self, timeout_sec=0.05)
+                if self.current_rgb is not None and self.current_depth is not None:
+                    pose_ok, _ = self.get_robot_pose()
+                    if pose_ok:
+                        break
+            time.sleep(2.0)  # 图像/TF 稳定
+            for _ in range(100):
+                rclpy.spin_once(self, timeout_sec=0.02)
+
+            ok = self._command_detect()
+            print(f"ONCE_RESULT {'OK' if ok else 'FAIL'}")
+            self.shutdown()
+            return
+
         print("🎬 程序已启动，在命令行中输入命令")
         try:
             while rclpy.ok() and self.running:
@@ -498,32 +525,44 @@ class EnhancedDetectorNode(Node):
 
     def shutdown(self):
         print("\n🧹 正在清理资源...")
-        # MoveItPy 需要在 rclpy 关闭前清理
+        if self.recorder is not None:
+            self.recorder.release()
         shutdown_arm = getattr(self.arm_controller, 'shutdown', None)
         if callable(shutdown_arm):
             try:
                 shutdown_arm()
             except Exception:
                 pass
-        self.exit_event.set()
-        if self.display_proc.is_alive():
-            self.display_proc.join(timeout=3)
+        if self.interactive:
+            self.exit_event.set()
+            if self.display_proc.is_alive():
+                self.display_proc.join(timeout=3)
+            self.keyboard_handler.restore()
         self.destroy_node()
-        self.keyboard_handler.restore()
         print("👋 程序已退出")
 
 
 def main():
-    config = DetectorConfig.from_yaml("config/default_config.yaml")
+    import argparse
+    parser = argparse.ArgumentParser(description='视觉机械臂抓取(Isaac Sim 版)')
+    parser.add_argument('--once', action='store_true',
+                        help='无头单次模式:检测并抓取一次后退出(用于自动化测试/录像)')
+    parser.add_argument('--config', default='config/default_config.yaml')
+    args = parser.parse_args()
+
+    config = DetectorConfig.from_yaml(args.config)
 
     rclpy.init()
     try:
-        detector = EnhancedDetectorNode(config)
-        detector.run()
+        detector = EnhancedDetectorNode(config, interactive=not args.once)
+        detector.run(once=args.once)
     except Exception as e:
         print(f"❌ 程序启动失败: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':

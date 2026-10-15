@@ -23,6 +23,13 @@ controller: "moveit"
 # 距离更近、视角更正,能显著提高抓取准确率
 two_stage_grasp: true
 
+# 抓取朝向补偿(度):方块边缘 PCA 短轴 → 末端系的对齐差;0 或 90
+grasp_yaw_offset_deg: 0
+
+# 视频录制(无头模式用)
+record_video: true
+video_path: "detection_results/wrist_detect.mp4"
+
 # 抓取是否使用深度估计出的 z 坐标(False 时抓取平面按 z=0 处理)
 use_estimated_z: false
 

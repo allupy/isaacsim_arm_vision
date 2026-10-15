@@ -230,16 +230,24 @@ class ArmControllerWithGripper:
     # ------------------------------------------------------------------
     # 运动原语
     # ------------------------------------------------------------------
+    def _resolve_orientation(self, orientation_type: str = "down",
+                             orientation: Optional[List[float]] = None) -> List[float]:
+        """显式四元数优先;否则按类型取固定朝向"""
+        if orientation is not None:
+            return list(orientation)
+        return self.get_fixed_orientation(orientation_type)
+
     def move_to_position_direct(self, position: List[float], gripper_position: Optional[float] = None,
-                                duration: float = 1.0, orientation_type: str = "down") -> bool:
-        """IK 求解后直接移动到位置(单点轨迹)"""
+                                duration: float = 1.0, orientation_type: str = "down",
+                                orientation: Optional[List[float]] = None) -> bool:
+        """IK 求解后直接移动到位置(单点轨迹);orientation 为 [x,y,z,w] 显式朝向"""
         if gripper_position is None:
             gripper_position = self.current_gripper
 
-        orientation = self.get_fixed_orientation(orientation_type)
+        orient = self._resolve_orientation(orientation_type, orientation)
         seed = self.get_current_joint_positions()
 
-        solution = self.compute_ik_single(position, orientation, seed)
+        solution = self.compute_ik_single(position, orient, seed)
         if solution is None:
             self.node.get_logger().error(f"IK失败: {position}")
             return False
@@ -253,10 +261,12 @@ class ArmControllerWithGripper:
     def move_linearly(self, start_pos: List[float], end_pos: List[float], num_points: int = 5,
                       gripper_position: Optional[float] = None, duration_per_step: float = 0.5,
                       orientation_type: str = "down", frame_id: str = 'world',
-                      total_duration: Optional[float] = None) -> bool:
+                      total_duration: Optional[float] = None,
+                      orientation: Optional[List[float]] = None) -> bool:
         """
         笛卡尔空间线性插值移动:整条轨迹一次发出,朝向全程固定。
         兼容旧参数 duration_per_step;传入 total_duration 则以其为准。
+        orientation 为 [x,y,z,w] 显式朝向(优先于 orientation_type)。
         """
         if total_duration is None:
             total_duration = duration_per_step * (num_points - 1)
@@ -264,7 +274,7 @@ class ArmControllerWithGripper:
         if gripper_position is None:
             gripper_position = self.current_gripper
 
-        fixed_orientation = self.get_fixed_orientation(orientation_type)
+        fixed_orientation = self._resolve_orientation(orientation_type, orientation)
 
         # 1. 笛卡尔插值
         cartesian_points = []
@@ -434,14 +444,19 @@ class ArmControllerWithGripper:
 
     def execute_pick_place(self, object_position: List[float],
                            place_position: Optional[List[float]] = None,
-                           object_type: str = "unknown", object_size: float = 0.03) -> bool:
+                           object_type: str = "unknown", object_size: float = 0.03,
+                           grasp_quat: Optional[List[float]] = None) -> bool:
         """
         完整抓取-放置流程:
-        归位 → 张爪 → 接近 → 下降 → 合爪 → 提升 → 圆弧转移 → 下降放置
-        → 松爪 → 提升 → 圆弧返回归位
+        归位 → 张爪 → 接近 → 下降 → 合爪 → 提升 → 转移 → 下降放置
+        → 松爪 → 提升 → 返回归位
+        grasp_quat: 抓取朝向 [x,y,z,w](来自方块边缘姿态估计),None 时用默认朝向。
         """
         if place_position is None:
             place_position = self.default_place_position
+
+        # 抓取/放置段朝向:显式四元数或默认
+        grasp_orient = list(grasp_quat) if grasp_quat is not None else None
 
         self.node.get_logger().info("开始抓取放置操作")
 
@@ -458,7 +473,7 @@ class ArmControllerWithGripper:
             above_pos = [object_position[0], object_position[1],
                          object_position[2] + self.approach_height]
             self.node.get_logger().info(f"2. 移动到物体上方: {above_pos}")
-            if not self.move_to_position_direct(above_pos, duration=1.5):
+            if not self.move_to_position_direct(above_pos, duration=1.5, orientation=grasp_orient):
                 return False
             time.sleep(1)
 
@@ -466,7 +481,8 @@ class ArmControllerWithGripper:
             grasp_pos = [object_position[0], object_position[1],
                          object_position[2] + self.pick_height]
             self.node.get_logger().info(f"3. 下降到抓取位置: {grasp_pos}")
-            if not self.move_linearly(above_pos, grasp_pos, 5, duration_per_step=0.3):
+            if not self.move_linearly(above_pos, grasp_pos, 5, duration_per_step=0.3,
+                                      orientation=grasp_orient):
                 return False
 
             # 4. 闭合夹爪
@@ -476,17 +492,18 @@ class ArmControllerWithGripper:
 
             # 5. 提升
             self.node.get_logger().info("5. 提升物体")
-            if not self.move_linearly(grasp_pos, above_pos, 3, duration_per_step=0.2):
+            if not self.move_linearly(grasp_pos, above_pos, 3, duration_per_step=0.2,
+                                      orientation=grasp_orient):
                 self.control_gripper(open=True)
                 return False
 
             self.go_home()
             time.sleep(1)
 
-            # 6. 水平圆弧转移到放置点上方(安全高度)
+            # 6. 转移到放置点上方(自由空间,默认朝向)
             safe_pos = [object_position[0], object_position[1], self.safe_height]
             place_safe = [place_position[0], place_position[1], self.safe_height]
-            self.node.get_logger().info("6. 圆弧移动到放置位置")
+            self.node.get_logger().info("6. 移动到放置位置")
             if not self._arc_move_with_fallback(self.home_position, place_safe,
                                                 safe_pos, clockwise=True,
                                                 total_duration=5.0):
@@ -498,7 +515,7 @@ class ArmControllerWithGripper:
             place_above = [place_position[0], place_position[1],
                            place_position[2] + self.approach_height]
             self.node.get_logger().info(f"7. 下降到放置位置: {place_above[2]:.3f}m")
-            if not self.move_to_position_direct(place_above, duration=1.0):
+            if not self.move_to_position_direct(place_above, duration=1.0, orientation=grasp_orient):
                 self.control_gripper(open=True)
                 return False
             time.sleep(1)
@@ -506,7 +523,7 @@ class ArmControllerWithGripper:
             # 8. 下降到放置点
             place_done = [place_position[0], place_position[1],
                           place_position[2] + self.pick_height]
-            if not self.move_to_position_direct(place_done, duration=0.8):
+            if not self.move_to_position_direct(place_done, duration=0.8, orientation=grasp_orient):
                 self.control_gripper(open=True)
                 return False
             time.sleep(1)
@@ -522,8 +539,8 @@ class ArmControllerWithGripper:
                 self.node.get_logger().warn("提升离开失败")
             time.sleep(1)
 
-            # 11. 圆弧返回归位
-            self.node.get_logger().info("11. 圆弧返回初始位置")
+            # 11. 返回归位
+            self.node.get_logger().info("11. 返回初始位置")
             if not self._arc_move_with_fallback(place_safe, self.home_position,
                                                 place_safe, clockwise=False,
                                                 total_duration=3.0):
