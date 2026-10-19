@@ -138,15 +138,6 @@ class DetectionManager:
                     detections.append(detection)
                     annotated_frame = self._draw_detection(annotated_frame, detection, i)
 
-            if not detections:
-                # 2026-10-16: ultralytics 8.3.x 与 v8.1 时代 yolov8s-world 权重 set_classes
-                # 不兼容,文本嵌入失效恒返回空框;仿真彩块场景用 HSV 颜色检测兜底。
-                fb = self._color_fallback(frame)
-                if fb:
-                    detections = fb
-                    for i, d in enumerate(detections):
-                        annotated_frame = self._draw_detection(annotated_frame, d, i)
-
             if self.config.display_stats:
                 annotated_frame = self._add_stats(annotated_frame, detections, start_time)
 
@@ -157,39 +148,6 @@ class DetectionManager:
             import traceback
             traceback.print_exc()
             return None, []
-
-    def _color_fallback(self, frame: np.ndarray) -> List[Detection]:
-        """HSV 颜色兜底检测(灰桌上找饱和色块),掩码直接取自颜色分割。"""
-        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        ranges = {
-            'red': [(0, 100, 60, 10), (170, 100, 60, 179)],
-            'green': [(40, 100, 60, 85)],
-            'blue': [(100, 100, 60, 130)],
-        }
-        h, w = frame.shape[:2]
-        out = []
-        for color, spans in ranges.items():
-            m = np.zeros((h, w), np.uint8)
-            for hlo, slo, vlo, hhi in spans:
-                m |= cv2.inRange(hsv, np.array([hlo, slo, vlo]), np.array([hhi, 255, 255]))
-            m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-            cnts, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if not cnts:
-                continue
-            c = max(cnts, key=cv2.contourArea)
-            if cv2.contourArea(c) < 400:
-                continue
-            x, y, bw, bh = cv2.boundingRect(c)
-            mask = np.zeros((h, w), np.uint8)
-            cv2.drawContours(mask, [c], -1, 255, -1)
-            out.append(Detection(
-                bbox=np.array([x, y, x + bw, y + bh]),
-                confidence=0.9,
-                class_name=f'{color} cube',
-                class_id=len(out),
-                mask=mask,
-            ))
-        return out
 
     def sample_precise_points(self, frame: np.ndarray, bbox: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """
