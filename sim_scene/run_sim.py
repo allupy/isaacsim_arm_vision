@@ -29,6 +29,13 @@ omni.kit.app.get_app().get_extension_manager().set_extension_enabled_immediate(
 ctx = omni.usd.get_context()
 ctx.open_stage("/ws/workbench.usd", None)
 stage = ctx.get_stage()
+
+# 场景坐标按米编写,但 stage 的 metersPerUnit=0.01(1单位=1cm),
+# depth annotator 会按 metersPerUnit 再折算一次,导致输出深度只有真值的 1/100。
+# 这里按 1/metersPerUnit 还原为米,不硬编码。
+from pxr import UsdGeom as _UsdGeom
+DEPTH_UNIT_SCALE = 1.0 / (_UsdGeom.GetStageMetersPerUnit(stage) or 1.0)
+print(f"depth unit scale = {DEPTH_UNIT_SCALE}", flush=True)
 print("=== STAGE OPENED (direct) ===", flush=True)
 
 from pxr import UsdPhysics  # noqa: E402
@@ -88,7 +95,7 @@ def publish_cameras():
         pub_rgb.publish(to_img_msg(rgb[:, :, ::-1].copy(), "bgr8"))
     d = np.asarray(ANN_DEPTH.get_data())
     if d.ndim == 2 and d.size:
-        pub_depth.publish(to_img_msg(np.ascontiguousarray(d, dtype=np.float32), "32FC1"))
+        pub_depth.publish(to_img_msg(np.ascontiguousarray(d * DEPTH_UNIT_SCALE, dtype=np.float32), "32FC1"))
     obs = np.asarray(ANN_OBS.get_data())
     if obs.ndim == 3 and obs.size:
         if obs.shape[-1] == 4:
