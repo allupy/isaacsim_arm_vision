@@ -16,7 +16,7 @@ for attempt in 1 2 3 4 5 6 7 8; do
     docker rm -f arm-wb-sim >/dev/null 2>&1
     sleep 2
     docker run -d --name arm-wb-sim --entrypoint bash         --gpus "\"device=$GPU\"" --network=host --ipc=private --shm-size=8g         -e ROS_DOMAIN_ID=77 -e RMW_IMPLEMENTATION=rmw_fastrtps_cpp         -e FASTRTPS_DEFAULT_PROFILES_FILE=/tmp/udp_only.xml         -e SIM_DURATION=$DUR -e DEBUG_RENDER=$DBG         -v $C/kit:/isaac-sim/kit/cache:rw         -v $C/kitdata:/isaac-sim/kit/data:rw         -v $C/ov:/root/.cache/ov:rw         -v $C/glcache:/root/.cache/nvidia/GLCache:rw         -v $C/computecache:/root/.nv/ComputeCache:rw         -v $WS:/ws -v $SIMDIR/run_sim.py:/tmp/run_sim.py         -v $SIMDIR/fastdds_udp.xml:/tmp/udp_only.xml:ro         isaac-sim-omnilrs-0513:latest         -c '/isaac-sim/python.sh /tmp/run_sim.py > /ws/_sim.log 2>&1'
-    for i in $(seq 1 24); do
+    for i in $(seq 1 40); do
         sleep 15
         if grep -aq 'sim running' $LOG; then
             echo "STABLE (attempt $attempt, t+$((i*15))s)"
