@@ -47,7 +47,9 @@ class DetectionManager:
 
     def set_classes(self, classes: List[str]):
         """设置检测类别(触发模型重新加载)"""
-        self.classes = classes
+        self.classes = list(dict.fromkeys(name.strip() for name in classes if name.strip()))
+        if not self.classes:
+            raise ValueError('At least one nonempty detection class is required')
         self._initialize_model()
 
     def _initialize_model(self):

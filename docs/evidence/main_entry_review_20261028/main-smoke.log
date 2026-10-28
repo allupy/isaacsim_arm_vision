@@ -1,0 +1,47 @@
+not found: "/ros2_ws/install/moveit_task_constructor_core/share/moveit_task_constructor_core/local_setup.bash"
+✅ 模型加载完成，检测类别: red cube, green cube, blue cube
+🔄 正在加载SAM模型 (vit_b): /ros2_ws/vision/sam_vit_b_01ec64.pth
+/usr/local/lib/python3.10/dist-packages/segment_anything/build_sam.py:105: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(f)
+✅ SAM模型加载完成
+[INFO] [1793199150.670507391] [enhanced_detector]: 已启用RGB-D订阅（无时间同步）
+
+============================================================
+🎯 视觉机械臂抓取(Isaac Sim 版)
+============================================================
+
+当前检测类别: red cube, green cube, blue cube
+保存目录: /experiment/diagnostics/main_entry_review_20261028/main_smoke
+YOLO 权重: /ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt
+阈值: 0.02; 推理尺寸: 1280
+SAM: vit_b; /ros2_ws/vision/sam_vit_b_01ec64.pth
+相机话题: /main_review/rgb, /depth
+仅观察模式：不创建机械臂控制器，不发送运动指令
+
+📋 快捷键:
+  [d] 实时检测当前帧并抓取最优目标(可配两阶段)
+  [s] 拍照并保存检测结果
+  [c] 修改检测类别
+  [r] 机械臂归位
+  [l] 显示历史记录
+  [h] 显示此帮助
+  [q] 退出程序
+  [ESC] 关闭显示窗口
+============================================================
+🎬 无头单次模式:等待图像与TF就绪...
+
+📸 拍照并保存检测结果...
+YOLO 框数: 2; 有效 SAM 掩码数: 1
+  red cube: 0.4091
+  blue cube: 0.0294
+
+💾 检测结果已保存:
+  原始图像: /experiment/diagnostics/main_entry_review_20261028/main_smoke/detection_20261028_145235_raw.jpg
+  结果图像: /experiment/diagnostics/main_entry_review_20261028/main_smoke/detection_20261028_145235_result.jpg
+  检测信息: /experiment/diagnostics/main_entry_review_20261028/main_smoke/detection_20261028_145235_info.txt
+  JSON数据: /experiment/diagnostics/main_entry_review_20261028/main_smoke/detection_20261028_145235.json
+ONCE_RESULT OK
+
+🧹 正在清理资源...
+👋 程序已退出
+MAIN_OBSERVE_ONLY_SMOKE_PASSED; controller=None; RGB publisher only; no TF or depth required

@@ -1,0 +1,254 @@
+{
+  "ultralytics": "8.3.246",
+  "mode": "offline saved-frame replay; no motion; not a success-rate benchmark",
+  "rows": [
+    {
+      "profile": "old_main",
+      "image": "yolo_cube_red_20261028_1/001_wrist.png",
+      "weight": "/ros2_ws/vision/yolov8s-world.pt",
+      "conf": 0.1,
+      "classes": [
+        "cube"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "old_main",
+      "image": "yolo_cube_red_20261028_1/004_observer.png",
+      "weight": "/ros2_ws/vision/yolov8s-world.pt",
+      "conf": 0.1,
+      "classes": [
+        "cube"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "old_main",
+      "image": "yolo_apple_20261028_1/003_observer.png",
+      "weight": "/ros2_ws/vision/yolov8s-world.pt",
+      "conf": 0.1,
+      "classes": [
+        "cube"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "v2_cube",
+      "image": "yolo_cube_red_20261028_1/001_wrist.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "cube"
+      ],
+      "detections": [
+        {
+          "label": "cube",
+          "confidence": 0.03850509971380234,
+          "bbox": [
+            360.39324951171875,
+            258.9031982421875,
+            402.22784423828125,
+            306.22467041015625
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "v2_cube",
+      "image": "yolo_cube_red_20261028_1/004_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "cube"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "v2_cube",
+      "image": "yolo_apple_20261028_1/003_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "cube"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "v2_colored",
+      "image": "yolo_cube_red_20261028_1/001_wrist.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "red cube",
+        "green cube",
+        "blue cube"
+      ],
+      "detections": [
+        {
+          "label": "red cube",
+          "confidence": 0.40910571813583374,
+          "bbox": [
+            360.3250732421875,
+            258.7320556640625,
+            402.4002685546875,
+            306.36376953125
+          ]
+        },
+        {
+          "label": "blue cube",
+          "confidence": 0.029391922056674957,
+          "bbox": [
+            379.49920654296875,
+            213.75836181640625,
+            423.76495361328125,
+            256.4984130859375
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "v2_colored",
+      "image": "yolo_cube_red_20261028_1/004_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "red cube",
+        "green cube",
+        "blue cube"
+      ],
+      "detections": [
+        {
+          "label": "green cube",
+          "confidence": 0.026398923248052597,
+          "bbox": [
+            400.6384582519531,
+            203.72775268554688,
+            424.3802795410156,
+            230.37103271484375
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "v2_colored",
+      "image": "yolo_apple_20261028_1/003_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "red cube",
+        "green cube",
+        "blue cube"
+      ],
+      "detections": [
+        {
+          "label": "red cube",
+          "confidence": 0.026740102097392082,
+          "bbox": [
+            350.0838623046875,
+            184.7994842529297,
+            372.3233642578125,
+            208.3557586669922
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "v2_everyday",
+      "image": "yolo_cube_red_20261028_1/001_wrist.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "apple",
+        "banana",
+        "cup"
+      ],
+      "detections": []
+    },
+    {
+      "profile": "v2_everyday",
+      "image": "yolo_cube_red_20261028_1/004_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "apple",
+        "banana",
+        "cup"
+      ],
+      "detections": [
+        {
+          "label": "cup",
+          "confidence": 0.11348812282085419,
+          "bbox": [
+            202.43690490722656,
+            129.87271118164062,
+            237.5537872314453,
+            176.06729125976562
+          ]
+        },
+        {
+          "label": "cup",
+          "confidence": 0.03402477130293846,
+          "bbox": [
+            155.66482543945312,
+            25.820770263671875,
+            338.19793701171875,
+            187.57058715820312
+          ]
+        }
+      ]
+    },
+    {
+      "profile": "v2_everyday",
+      "image": "yolo_apple_20261028_1/003_observer.png",
+      "weight": "/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt",
+      "conf": 0.02,
+      "classes": [
+        "apple",
+        "banana",
+        "cup"
+      ],
+      "detections": [
+        {
+          "label": "cup",
+          "confidence": 0.6345047950744629,
+          "bbox": [
+            350.60382080078125,
+            184.79031372070312,
+            372.09356689453125,
+            207.96438598632812
+          ]
+        },
+        {
+          "label": "cup",
+          "confidence": 0.13292059302330017,
+          "bbox": [
+            200.20623779296875,
+            129.55242919921875,
+            238.0972900390625,
+            178.4954833984375
+          ]
+        },
+        {
+          "label": "banana",
+          "confidence": 0.11682087182998657,
+          "bbox": [
+            346.50628662109375,
+            230.27194213867188,
+            384.44610595703125,
+            255.52847290039062
+          ]
+        },
+        {
+          "label": "cup",
+          "confidence": 0.04607751965522766,
+          "bbox": [
+            149.0408935546875,
+            22.781570434570312,
+            323.16339111328125,
+            186.24440002441406
+          ]
+        }
+      ]
+    }
+  ]
+}

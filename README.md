@@ -52,6 +52,8 @@ flowchart LR
 
 ## 当前能力与实验结果
 
+**入口说明**：近期闭环 Demo 使用 `feedback_runner.py`，通过 `scripts/arm.sh` 启动。`main.py` 仍是旧的交互式两阶段抓取流程；同仓同步不等于两条入口的控制逻辑相同。其检测配置已修正，并增加只观察模式，详见 [main.py 检查与修正](docs/MAIN_ENTRY_REVIEW.md)。
+
 | 模块 | 当前实现 |
 |---|---|
 | 视觉 | YOLO-World 开放词汇检测、SAM 分割、深度定位、视觉目标锁定 |
@@ -123,9 +125,22 @@ docs/                   环境、演示、评分证据与迁移记录
 
 ## 验证与参与
 
+若需要排查 YOLO 漏检，在已加载 ROS 环境的控制容器内先运行下面的只观察命令（从仓库目录执行）：
+
+```bash
+# 三色方块场景：只检测、保存图像和置信度，不初始化机械臂控制器
+python3 main.py --once --observe-only --classes "red cube" "green cube" "blue cube"
+
+# 日常物体场景：类别必须与图像中的目标对应
+python3 main.py --once --observe-only --classes apple banana cup
+```
+
+启动日志打印最终权重路径、类别、阈值、SAM 型号和相机话题。YOLO 检测框、SAM 掩码和位姿估计失败分别诊断；阈值降低会增加误识别，不能代替场景验证。
+
 ```bash
 python -m unittest discover -s tests -p test_feedback.py
 python -m unittest discover -s tests -p test_performance.py
+python -m unittest discover -s tests -p test_main_entry.py
 python agent_workflow/test_workflow.py
 python scripts/check_assets.py
 ```

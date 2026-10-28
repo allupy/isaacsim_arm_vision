@@ -40,7 +40,7 @@ def resolve_weight_path(path: str) -> str:
 class DetectorConfig:
     """检测器配置(检测 + 分割 + 相机 + 机械臂)"""
     save_dir: str = "detection_results"
-    default_classes: List[str] = field(default_factory=lambda: ["cube"])
+    default_classes: List[str] = field(default_factory=lambda: ["red cube", "green cube", "blue cube"])
     model_path: str = "yolov8s-worldv2.pt"
     confidence_threshold: float = 0.02
     max_detections: int = 20
@@ -48,8 +48,8 @@ class DetectorConfig:
     auto_save: bool = True
 
     # SAM 分割
-    sam_checkpoint: str = "sam_vit_h_4b8939.pth"
-    sam_model_type: str = "vit_h"
+    sam_checkpoint: str = "sam_vit_b_01ec64.pth"
+    sam_model_type: str = "vit_b"
 
     # 相机内参
     camera_matrix: Optional[np.ndarray] = None
@@ -79,7 +79,9 @@ class DetectorConfig:
         """从YAML文件加载配置"""
         config = cls()
 
-        if yaml_path and os.path.exists(yaml_path):
+        if yaml_path and not os.path.isfile(yaml_path):
+            raise FileNotFoundError(f'Configuration file not found: {yaml_path}')
+        if yaml_path:
             with open(yaml_path, 'r', encoding='utf-8') as f:
                 yaml_data = yaml.safe_load(f) or {}
 
@@ -110,8 +112,8 @@ class DetectorConfig:
                         setattr(config, key, value)
 
         # 权重路径解析(相对路径 → 绝对路径)
-        config.model_path = resolve_weight_path(config.model_path)
-        config.sam_checkpoint = resolve_weight_path(config.sam_checkpoint)
+        config.model_path = resolve_weight_path(os.environ.get('ROBOT_YOLO_WEIGHTS', config.model_path))
+        config.sam_checkpoint = resolve_weight_path(os.environ.get('ROBOT_SAM_WEIGHTS', config.sam_checkpoint))
 
         return config
 

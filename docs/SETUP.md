@@ -9,7 +9,7 @@
 - 需要 `moveit_ws/install/setup.bash` 与 moveit_py 安装目录，MoveIt 配置源码快照见 `ros2/ur5_moveit_config/`。
 - YOLO 权重默认 `/ros2_ws/isaacsim_arm_vision/yolov8s-worldv2.pt`，SAM 默认 `/ros2_ws/vision/sam_vit_b_01ec64.pth`。
 
-启动前确认这两个权重文件存在。可通过 `ROBOT_YOLO_WEIGHTS`、`ROBOT_SAM_WEIGHTS` 指定容器内可读路径；权重未提交。SAM 反馈路径使用 vit_b，与原交互入口 YAML 的 vit_h 配置不同。
+启动前确认这两个权重文件存在。可通过 `ROBOT_YOLO_WEIGHTS`、`ROBOT_SAM_WEIGHTS` 指定容器内可读路径；权重未提交。SAM 反馈路径与当前交互入口默认均使用 vit_b。若改为其他 SAM 型号，需要同时修改 checkpoint 和 sam_model_type。
 
 宿主机只做规则规划时使用 Python 标准库；资产校验使用标准库。单元检查需要 numpy、opencv、scipy；实时审计还需要 numpy。完整视觉与运动依赖由上述镜像提供。
 

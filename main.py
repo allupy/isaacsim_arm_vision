@@ -90,11 +90,14 @@ def display_process(image_queue, exit_event, window_name="Detection"):
 class EnhancedDetectorNode(Node):
     """ROS2 检测 + 抓取主节点"""
 
-    def __init__(self, config: DetectorConfig, interactive: bool = True):
+    def __init__(self, config: DetectorConfig, interactive: bool = True,
+                 observe_only: bool = False, rgb_topic='/rgb', depth_topic='/depth'):
         super().__init__('enhanced_detector')
 
         self.config = config
         self.interactive = interactive
+        self.observe_only = observe_only
+        self.rgb_topic, self.depth_topic = rgb_topic, depth_topic
         self.bridge = CvBridge()
 
         # TF(末端执行器位姿)
@@ -121,6 +124,7 @@ class EnhancedDetectorNode(Node):
         self._result_sent = False
         self._last_live_send = 0.0
 
+        self.io_manager = IOManager(config.save_dir)
         # 视频录制(无头/交互模式均可用)
         self.recorder = None
         if getattr(config, 'record_video', False):
@@ -139,10 +143,9 @@ class EnhancedDetectorNode(Node):
             self.display_proc.start()
 
         # 模块初始化
-        self.io_manager = IOManager(config.save_dir)
         if self.interactive:
             self.keyboard_handler = KeyboardHandler()
-        self.arm_controller = self._create_arm_controller()
+        self.arm_controller = None if self.observe_only else self._create_arm_controller()
 
         self.class_manager = ClassManager(config.default_classes)
         self.class_manager.on_classes_changed = self._on_classes_changed
@@ -155,8 +158,8 @@ class EnhancedDetectorNode(Node):
 
     def _setup_subscribers(self):
         """订阅 RGB 与深度(取最新帧;时间同步是已知待改进项,见 README)"""
-        self.rgb_sub = self.create_subscription(Image, '/rgb', self.rgb_callback, 10)
-        self.depth_sub = self.create_subscription(Image, '/depth', self.depth_callback, 10)
+        self.rgb_sub = self.create_subscription(Image, self.rgb_topic, self.rgb_callback, 10)
+        self.depth_sub = self.create_subscription(Image, self.depth_topic, self.depth_callback, 10)
         self.get_logger().info("已启用RGB-D订阅（无时间同步）")
 
     def _create_arm_controller(self):
@@ -282,13 +285,20 @@ class EnhancedDetectorNode(Node):
         print("=" * 60)
         print(f"\n当前检测类别: {self.class_manager.format_classes_display()}")
         print(f"保存目录: {self.io_manager.save_dir.absolute()}")
+        print(f"YOLO 权重: {self.config.model_path}")
+        print(f"阈值: {self.config.confidence_threshold}; 推理尺寸: {self.config.inference_imgsz}")
+        print(f"SAM: {self.config.sam_model_type}; {self.config.sam_checkpoint}")
+        print(f"相机话题: {self.rgb_topic}, {self.depth_topic}")
+        print('此入口保留旧两阶段抓取流程；反馈闭环请使用 feedback_runner.py / scripts/arm.sh')
+        if self.observe_only:
+            print('仅观察模式：不创建机械臂控制器，不发送运动指令')
         if self.interactive:
             print(f"显示进程PID: {self.display_proc.pid}")
         self._print_help()
 
     def _print_help(self):
         print("\n📋 快捷键:")
-        print("  [d] 实时检测当前帧并抓取最优目标(可配两阶段)")
+        print("  [d] 仅检测并保存" if self.observe_only else "  [d] 实时检测当前帧并抓取最优目标(可配两阶段)")
         print("  [s] 拍照并保存检测结果")
         print("  [c] 修改检测类别")
         print("  [r] 机械臂归位")
@@ -314,6 +324,9 @@ class EnhancedDetectorNode(Node):
         elif command == 'c':
             self._command_change_classes()
         elif command == 'r':
+            if self.arm_controller is None:
+                print('仅观察模式不执行归位')
+                return
             status = self.arm_controller.get_status()
             print(status)
             self.arm_controller.go_home()
@@ -336,10 +349,11 @@ class EnhancedDetectorNode(Node):
             self.result_show_start = time.time()
             self._result_sent = False
         if not detections:
+            print(f'YOLO 无检测框：类别={self.detection_manager.classes}, 阈值={self.config.confidence_threshold}')
             return None
         best = max(detections, key=lambda d: d.confidence)
         if best.mask is None or not best.mask.any():
-            print(f"警告: 检测到{best.class_name}但没有掩码，无法进行姿态估计")
+            print(f"SAM 无有效掩码：YOLO 已检测到 {best.class_name} ({best.confidence:.3f})，不能据此执行抓取")
             return None
         x, y, z, quat = estimate_object_pose(
             rgb, depth, robot_pose, best.mask,
@@ -350,6 +364,8 @@ class EnhancedDetectorNode(Node):
 
     def _command_detect(self) -> bool:
         """实时检测 + 抓取置信度最高的目标(含两阶段位姿估计)"""
+        if self.observe_only:
+            return self._command_observe()
         rgb, depth, robot_pose = self.get_current_frames()
         if rgb is None:
             print("❌ 错误: 没有可用的图像帧")
@@ -364,7 +380,7 @@ class EnhancedDetectorNode(Node):
         print("\n🎯 运行实时检测...")
         est = self._estimate_from_frames(rgb, depth, robot_pose)
         if est is None:
-            print("❌ 未检测到可抓取目标")
+            print("❌ 检测或分割/位姿估计未通过，详见上方分阶段信息")
             return False
         x, y, z, quat, _ = est
         print(f"[阶段1] 物体位置({x:.3f},{y:.3f},{z:.3f}) 抓取朝向 quat=["
@@ -405,6 +421,14 @@ class EnhancedDetectorNode(Node):
         print("✅ 抓取完成" if ok else "❌ 抓取失败")
         return ok
 
+    def _command_observe(self) -> bool:
+        """Report detector and segmenter outcomes without TF or motion services."""
+        if self.current_rgb is None:
+            print('没有收到 RGB，请检查 ROS_DOMAIN_ID、相机话题和发布者')
+            return False
+        self._command_save()
+        return bool(self._last_saved_detections)
+
     def _command_save(self):
         """拍照并保存检测结果"""
         rgb = self.current_rgb
@@ -414,6 +438,11 @@ class EnhancedDetectorNode(Node):
 
         print("\n📸 拍照并保存检测结果...")
         result_img, detections = self.detection_manager.detect(rgb)
+        self._last_saved_detections = detections
+        print(f'YOLO 框数: {len(detections)}; 有效 SAM 掩码数: '
+              f'{sum(d.mask is not None and bool(d.mask.any()) for d in detections)}')
+        for detection in detections:
+            print(f'  {detection.class_name}: {detection.confidence:.4f}')
 
         if result_img is not None:
             self.result_img = result_img.copy()
@@ -477,10 +506,12 @@ class EnhancedDetectorNode(Node):
     def run(self, once: bool = False):
         """once=True: 无头单次模式——等待数据就绪后执行一轮检测+抓取即退出"""
         if once:
-            print("🎬 无头单次模式:等待图像与TF就绪...")
+            print("🎬 无头单次模式:等待 RGB..." if self.observe_only else "🎬 无头单次模式:等待图像与TF就绪...")
             deadline = time.time() + 60
             while time.time() < deadline:
                 rclpy.spin_once(self, timeout_sec=0.05)
+                if self.observe_only and self.current_rgb is not None:
+                    break
                 if self.current_rgb is not None and self.current_depth is not None:
                     pose_ok, _ = self.get_robot_pose()
                     if pose_ok:
@@ -492,7 +523,7 @@ class EnhancedDetectorNode(Node):
             ok = self._command_detect()
             print(f"ONCE_RESULT {'OK' if ok else 'FAIL'}")
             self.shutdown()
-            return
+            return ok
 
         print("🎬 程序已启动，在命令行中输入命令")
         try:
@@ -543,27 +574,26 @@ class EnhancedDetectorNode(Node):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description='视觉机械臂抓取(Isaac Sim 版)')
-    parser.add_argument('--once', action='store_true',
-                        help='无头单次模式:检测并抓取一次后退出(用于自动化测试/录像)')
-    parser.add_argument('--config', default='config/default_config.yaml')
-    args = parser.parse_args()
-
-    config = DetectorConfig.from_yaml(args.config)
+    from config.main_entry import parse_args, load_config
+    args = parse_args()
+    config = load_config(args)
 
     rclpy.init()
     try:
-        detector = EnhancedDetectorNode(config, interactive=not args.once)
-        detector.run(once=args.once)
+        detector = EnhancedDetectorNode(config, interactive=not args.once,
+                                       observe_only=args.observe_only,
+                                       rgb_topic=args.rgb_topic, depth_topic=args.depth_topic)
+        ok = detector.run(once=args.once)
+        return 0 if not args.once or ok else 2
     except Exception as e:
         print(f"❌ 程序启动失败: {e}")
         import traceback
         traceback.print_exc()
+        return 1
     finally:
         if rclpy.ok():
             rclpy.shutdown()
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

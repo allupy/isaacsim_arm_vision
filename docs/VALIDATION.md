@@ -2,6 +2,8 @@
 
 2026-10-28，Asia/Shanghai。
 
+本页记录首次统一提交 `73470c0` 的验证。后续 main.py 检测入口修正、39 项检查和实际 ROS 图像回放见 [入口检查记录](MAIN_ENTRY_REVIEW.md)。
+
 ## 已通过
 
 - `test_feedback.py`：23 项，反馈状态、观测配对、目标锁定与失败恢复等。

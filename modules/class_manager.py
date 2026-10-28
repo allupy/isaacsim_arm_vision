@@ -23,9 +23,9 @@ class ClassManager:
         # 去重
         unique_classes = list(dict.fromkeys(classes))
         
-        # 确保有空字符串作为背景类
-        if "" not in unique_classes:
-            unique_classes.append("")
+        unique_classes = [name.strip() for name in unique_classes if name.strip()]
+        if not unique_classes:
+            raise ValueError('At least one nonempty detection class is required')
         
         self.current_classes = unique_classes
         

@@ -3,16 +3,17 @@
 # 按 当前目录 → 项目根目录 → ../vision 顺序查找
 
 save_dir: "detection_results"
-default_classes: ["cube"]
-model_path: "yolov8s-world.pt"
-confidence_threshold: 0.1
+default_classes: ["red cube", "green cube", "blue cube"]
+model_path: "yolov8s-worldv2.pt"
+confidence_threshold: 0.02
+inference_imgsz: 1280
 max_detections: 20
 display_stats: true
 auto_save: true
 
 # SAM 分割模型
-sam_checkpoint: "sam_vit_h_4b8939.pth"   # vit_h 精度高;追求速度可换 sam_vit_b_01ec64.pth
-sam_model_type: "vit_h"                  # 可选 vit_b / vit_l / vit_h
+sam_checkpoint: "sam_vit_b_01ec64.pth"
+sam_model_type: "vit_b"
 
 # 机械臂控制方案:
 #   "moveit" = MoveItPy/OMPL 整条轨迹规划(推荐,需 moveit_ws 环境;规划失败自动回退 ik)
