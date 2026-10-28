@@ -1,0 +1,8 @@
+* text=auto eol=lf
+assets/** binary
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.usd binary
+*.mp4 binary
+*.gif binary

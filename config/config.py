@@ -60,6 +60,13 @@ class DetectorConfig:
 
     # 抓取是否使用深度估计的 z(默认 False:抓取平面高度取 0,与原有行为一致)
     use_estimated_z: bool = False
+    controller: str = 'moveit'
+    two_stage_grasp: bool = True
+    grasp_yaw_offset_deg: float = 0.0
+    record_video: bool = False
+    video_path: str = 'detection_results/wrist_detect.mp4'
+    inference_imgsz: int = 1280
+    feedback: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if self.camera_matrix is None:
@@ -73,7 +80,7 @@ class DetectorConfig:
         config = cls()
 
         if yaml_path and os.path.exists(yaml_path):
-            with open(yaml_path, 'r') as f:
+            with open(yaml_path, 'r', encoding='utf-8') as f:
                 yaml_data = yaml.safe_load(f) or {}
 
                 # 相机内参(嵌套列表 → ndarray)
@@ -122,7 +129,7 @@ class DetectorConfig:
 
     def to_yaml(self, yaml_path: str):
         """保存配置到YAML"""
-        with open(yaml_path, 'w') as f:
+        with open(yaml_path, 'w', encoding='utf-8') as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True)
 
     def get_cam2gripper_pose(self) -> Tuple[np.ndarray, np.ndarray]:

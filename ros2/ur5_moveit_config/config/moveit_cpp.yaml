@@ -1,0 +1,13 @@
+# moveit_cpp.yaml
+planning_pipelines:
+  pipeline_names: ["ompl"]
+  default_planning_pipeline: "ompl"
+
+# 可选的其他配置
+pilz_industrial_motion_planner:
+  plan_planner_plugins:
+    - "PTP"
+    - "LIN"
+    - "CIRC"
+  max_velocity_scaling_factor: 1.0
+  max_acceleration_scaling_factor: 1.0

@@ -86,7 +86,7 @@ class DetectionManager:
             print(f"❌ SAM模型初始化失败(将跳过分割): {e}")
             self.sam_predictor = None
 
-    def detect(self, frame: np.ndarray) -> Tuple[Optional[np.ndarray], List[Detection]]:
+    def detect(self, frame: np.ndarray, segment_all: bool = False) -> Tuple[Optional[np.ndarray], List[Detection]]:
         """
         在图像上运行检测 + 最优目标分割
 
@@ -132,7 +132,7 @@ class DetectionManager:
                 for i, box in enumerate(boxes):
                     detection = self._process_box(box, results[0], i)
 
-                    if i == best_box_idx and self.sam_predictor is not None:
+                    if (segment_all or i == best_box_idx) and self.sam_predictor is not None:
                         bbox = box.xyxy.cpu().numpy().astype(int).flatten()
                         detection.mask = self._generate_sam_mask(bbox, frame)
 
@@ -224,7 +224,8 @@ class DetectionManager:
         """框 + 精准点提示的SAM分割,含轻量后处理"""
         try:
             # 1. 采样「中心正点+边缘暗点负点」
-            point_coords, point_labels = self.sample_precise_points(frame, bbox)
+            point_coords, point_labels = (self.sample_precise_points(frame, bbox)
+                if getattr(self.config,'sam_prompt_mode','points')=='points' else (None,None))
 
             # 2. SAM 预测
             input_box = np.array([bbox])

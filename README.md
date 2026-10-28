@@ -1,146 +1,133 @@
-# isaacsim_arm_vision · 视觉机械臂抓取(Isaac Sim 版)
+<div align="center">
 
-在 Isaac Sim 仿真中对 UR5 机械臂实现「开放词汇目标检测 → 分割 → 6D 定位 → 抓取放置」的完整流程。
-实物相机版本见 `../vision/`(两项目共享同一套 modules,参数各有差异)。
+# 🦾 Vision → Action
 
-## 系统流水线
+### 看见目标 · 近距离校正 · 抓取验证 · 连续执行
 
-```
-Isaac Sim(动作图发布 /joint_states,订阅 /joint_command)
-        │ ros2
-        ▼
-MoveIt(/compute_ik 服务,提供 IK 求解)
-        ▲                            ┌────────────────────────────────┐
-        │ service                    │  main.py (本程序)              │
-/joint_states ◄──────────────────────│  YOLO-World 检测(开放词汇)     │
-        + /rgb /depth(TF)            │  → SAM 分割(仅最优目标)        │
-                                    │  → 掩码质心+深度 → 基座系坐标   │
-/moveit_trajectory ─(转换器)→ /joint_command  ←  抓取/放置轨迹 ─────┘
-```
+**UR5 桌面视觉抓放与反馈闭环实验平台**
 
-## 运行
+![Isaac Sim](https://img.shields.io/badge/Isaac_Sim-5.0-76B900?style=flat-square)
+![ROS 2](https://img.shields.io/badge/ROS_2-Humble-22314E?style=flat-square)
+![MoveIt](https://img.shields.io/badge/MoveIt-2-3273DC?style=flat-square)
+![Vision](https://img.shields.io/badge/Vision-YOLO_World_%2B_SAM-0E9488?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Simulation_Prototype-F59E0B?style=flat-square)
 
-```bash
-# 终端1: 启动 Isaac Sim(机械臂场景,含动作图)
-# 终端2: 启动 MoveIt(同一 ROS 容器内)
-ros2 launch ur5_moveit_config start_moveit_isaac.launch.py
-# 终端3: 本程序(同一 ROS 容器内,cwd = isaacsim_arm_vision)
-python3 main.py
-```
+[观看完整演示](docs/media/tabletop-agent.mp4) · [启动说明](#快速开始ws) · [场景与资产](docs/SCENES.md) · [参与开发](CONTRIBUTING.md)
 
-快捷键:`d` 检测并抓取最优目标 / `s` 拍照保存 / `c` 改类别 / `r` 归位 / `l` 历史 / `q` 退出。
+</div>
 
-> 运行 MoveItPy 模式前需 source moveit_ws:
-> `source /ros2_ws/moveit_ws/install/setup.bash` 且
-> `export PYTHONPATH=/ros2_ws/moveit_ws/install/moveit_py/local/lib/python3.10/dist-packages:$PYTHONPATH`
+[![机械臂连续抓放实录](docs/media/tabletop-preview.gif)](https://github.com/allupy/isaacsim_arm_vision/blob/master/docs/media/tabletop-agent.mp4)
 
-## 两种控制方案(config: `controller`)
+> **“把苹果放到水果区，再把杯子放到杯子区。”**
+> 真实 Isaac Sim 渲染帧连续录制，包含全景、腕部相机、执行状态和独立评分。上方动图为原片中 17–34 秒的片段，保持原片播放速度；点击可看完整中文视频。原片按仿真时间 1 倍速播放，现实耗时与仿真时间不同。
 
-| | `controller: "moveit"`(推荐) | `controller: "ik"`(旧方案) |
-|---|---|---|
-| 自由空间运动 | **MoveItPy/OMPL 整条轨迹规划**(时间最优参数化,平滑无启停) | IK 服务逐点求解 + 手写圆弧规避 |
-| 垂直下降/提升 | 直线插值 + 逐点IK(整条轨迹一次发布,保证垂直接近方向) | 同左 |
-| 失败处理 | 规划失败自动回退 IK 单点模式;初始化失败自动降级 `ik` | — |
+## 从指令到闭环动作
 
-`modules/moveit_controller.py` 中 `build_ur5_moveit_config()` 封装了本版本 moveit_py(2.5.x)
-初始化所需的三个配置修复——这也是当初 MoveItPy 方案跑不起来的真正原因:
+语言规划产生受约束的抓放步骤，经校验后调用视觉抓放技能。YOLO-World 找目标，SAM 提取掩码，RGB-D 将观测转换到机械臂基座系；机械臂运动到近距离观察位再次定位，再执行抓取、提起验证和放置验证。失败时有限重试或终止，多步骤任务只在上一技能报告成功后继续。
 
-1. `config_dict` 必须传**完整**的 MoveItConfigsBuilder 字典(传空字典等于没有机器人描述);
-2. builder 生成的 `ompl` 段是双层嵌套(`ompl.ompl.planning_plugin`),需展平为 `ompl.planning_plugin`;
-3. `planning_pipelines` 需转为命名空间形式 `{pipeline_names: [...]}`(即 moveit_cpp.yaml 的格式);
-4. 本版本 `PlanRequestParameters` 从 MoveItPy 实例构造后逐字段赋值,`plan(parameters=...)` 传参。
-
-## 轨迹执行链路(重要)
-
-```
-main.py / MoveItArmController ──/moveit_trajectory(JointTrajectory,整条)──►
-trajectory_converter(ur5_moveit_config/launch/) ──60Hz 插值回放──► /joint_command ──► Isaac Sim
+```mermaid
+flowchart LR
+    A[中文指令] --> B[规则 / LLM 规划]
+    B --> C[步骤与目的地校验]
+    C --> D[YOLO-World + SAM + RGB-D]
+    D --> E[近距离校正]
+    E --> F[MoveIt / 轨迹执行]
+    F --> G[提起与放置反馈]
+    G -->|下一步骤| D
+    G --> H[独立仿真评分]
 ```
 
-- 转换器已升级为**整条轨迹按时戳插值回放**(原版只转发第一个点,任何多点轨迹都会被截断);
-- 回放用**墙钟线程**实现:launch 传入的 `use_sim_time:=true` 在无 /clock 时会冻结 ROS 时间,
-  节点定时器永不触发(这是调试中实际踩到的坑);
-- 单点轨迹仍立即发布,与旧命令格式完全兼容。
+独立评分在执行后读取仿真真值，不向规划器或抓取策略提供目标真值。当前语言接口只支持已定义的物体、目的地和抓放技能；这是有明确场景边界的仿真原型。
 
-## 两阶段抓取(config: `two_stage_grasp: true`)
+## Demo Gallery
 
-提高抓取准确率最简单有效的手段:
+| 三色方块与目标选择 | 日常物体：苹果、杯子、香蕉 |
+|:---:|:---:|
+| [![三色方块](docs/media/multicolor-cubes.jpg)](docs/media/multicolor-cubes.mp4) | [![日常物体](docs/media/everyday-objects.jpg)](docs/media/everyday-objects.mp4) |
+| [▶ 多色方块实录](docs/media/multicolor-cubes.mp4) | [▶ 日常物体实录](docs/media/everyday-objects.mp4) |
 
-1. 第一次检测估计物体位置 → 运动到物体**正上方**;
-2. 再次检测+位姿估计(距离近、视角正,误差显著更小);
-3. 用第二阶段的估计执行抓取(任一阶段失败自动沿用上一阶段结果)。
+**连续两步抓放**：主视频运行 `agent_llm_video_20261028` 使用 LLM 生成计划，YOLO+SAM 执行苹果和杯子抓放；该次独立评分通过，落点 XY 误差分别为 **5.1 mm / 6.7 mm**。[计划](docs/evidence/agent_runs/agent_llm_video_20261028/plan.json) · [评分](docs/evidence/agent_runs/agent_llm_video_20261028/audit.json)
 
-## 无头自测脚本(不需要 Isaac Sim)
+**实体目的地原型**：[苹果放盘子、杯子放杯架的视频](docs/media/physical-destinations-prototype.mp4)。承托物由 RGB ArUco 标记与深度定位；该次苹果通过，杯子偏差 **27.4 mm**，超过 **21 mm** 的内部放置容差，整项任务独立评分未通过。[评分记录](docs/evidence/agent_runs/agent_destinations_20261028/audit.json)
 
-```bash
-# 1. MoveItPy 初始化+规划测试(不需要任何外部节点)
-python3 tests/test_moveitpy.py
-# 2. 端到端测试(需 move_group+converter 在运行,用假 /joint_states 代替仿真)
-ros2 launch ur5_moveit_config start_moveit_isaac.launch.py   # 另一终端
-python3 tests/test_e2e.py
-```
+## 当前能力与实验结果
 
-## 目录结构
-
-```
-├── main.py                 主节点:订阅/显示/位姿估计/命令循环
-├── config/
-│   ├── config.py           DetectorConfig(YAML 加载 + 权重路径解析)
-│   └── default_config.yaml 全部可调参数(模型/内参/手眼外参/机械臂)
-├── modules/
-│   ├── detection_manager.py  YOLO-World + SAM(仅最优目标分割)
-│   ├── arm_manager.py        机械臂控制基础类(IK/直线插值/夹爪/抓放流程)
-│   ├── moveit_controller.py  MoveItPy 版控制器(OMPL 规划,继承 arm_manager)
-│   ├── io_manager.py         结果保存与历史
-│   ├── class_manager.py      开放词汇类别管理(伪自然语言交互)
-│   └── keyboard_handler.py   非阻塞键盘输入
-├── tests/                  无头自测脚本(test_moveitpy / test_e2e)
-└── archive/                历史版本(废弃的 MoveItPy 初版、旧备份等)
-```
-
-## 配置要点(config/default_config.yaml)
-
-| 参数 | 说明 |
+| 模块 | 当前实现 |
 |---|---|
-| `model_path` / `sam_checkpoint` | 权重路径,按 当前目录→项目根→../vision 顺序查找 |
-| `camera_matrix` / `dist_coeffs` | 相机内参(D455 1280×720) |
-| `R_cam2gripper` / `t_cam2gripper` | 手眼标定结果(眼在手外,装于末端) |
-| `arm.home_position` 等 | 机械臂抓放参数(高度/圆弧半径/夹爪) |
-| `use_estimated_z` | 抓取 z 是否用深度估计值(默认 false,按桌面 z=0) |
+| 视觉 | YOLO-World 开放词汇检测、SAM 分割、深度定位、视觉目标锁定 |
+| 二次观察 | 基于相机光心/光轴的近距离观察位，随后切换到夹爪抓取位 |
+| 反馈策略 | 状态机、提起/放置验证、有限恢复、异常终止 |
+| 执行 | MoveIt/IK、整段轨迹、仿真物理步插值执行 |
+| 场景 | 工作台三色方块、短平行夹爪、YCB 日常物体、带标记盘子/杯架 |
+| 任务编排 | 受约束中文指令、可选 LLM、顺序技能、计划/事件/结果记录 |
 
-## 设计笔记(踩坑记录,原 README 保留)
+在固定红块场景、**颜色诊断感知**、各 3 次的历史对照中，优化前后现实耗时中位数为 **75.99 → 10.72 秒**，仿真时间中位数为 **32.76 → 23.83 秒**。这组结果反映了仿真执行与调度优化，不能外推为真机性能或 YOLO+SAM 的稳定成功率。[实验说明](PERFORMANCE_20261028.md) · [原始汇总](docs/evidence/runs/performance_summary.json)
 
-### 延迟
-- 曾出现严重显示/控制延迟,根源是**键盘输入阻塞累积**:
-  `get_key(0.1) → get_key(0.01)` 后延迟瞬间消失。主循环中所有轮询超时都要保持毫秒级。
+![耗时与运动对照](docs/media/performance-comparison.png)
 
-### SAM 分割优化
-- SAM 的 `set_image`/`predict` 是主要耗时点,**每帧只对置信度最高的目标执行一次**;
-  其余检测框只保留 bbox(抓取只用到最优目标的掩码)。
-- **阴影抑制**(本项目的核心小技巧):SAM 提示 = 检测框 + 采样点——
-  - 中心区域采正点,锚定物体本体;
-  - 框内四条边缘只采「比中心暗 30% 以上」的点作负点,抑制与物体相连的阴影,
-    避免负点误伤本体;后处理再做填洞 + 最大连通域过滤。
-  实现在 `detection_manager.py` 的 `sample_precise_points()`。
+## 快速开始（ws）
 
-### 机械臂
-- 夹爪 `finger_joint` 限位 [0, 0.8],0.8 为闭合;只能控开合角度,无力控。
-- 长距离转移用**水平面内圆弧运动**(`move_in_arc_simple`),IK 解比自由空间更合理;
-  失败自动回退直线插值。
-- 轨迹点之间的 `time.sleep` 不能全去掉,否则会出现多段运动复合;改善方向见下。
+现有 ws 环境使用 Docker；需要 NVIDIA GPU、`isaac-sim-omnilrs-0513:latest`、`moveit_aluupy:latest` 镜像，以及已编译的 ROS 2 / MoveIt 工作空间。模型权重由工作站提供，未放入 Git。新机器的依赖和限制见 [环境说明](docs/SETUP.md)。
 
-## 已知待改进
+```bash
+git clone git@github.com:allupy/isaacsim_arm_vision.git
+cd isaacsim_arm_vision
 
-- [ ] RGB/深度/TF 仍取"最新帧",未按 header.stamp 时间同步
-- [ ] 抓取 z 默认取 0(桌面假设),`use_estimated_z: true` 可切换为深度估计值
-- [ ] URDF 不含夹爪(finger_joint 只存在于 Isaac Sim 的 USD),MoveIt 监听 /joint_states 时
-      会对 finger_joint 打 "not found in model" 告警——无害,但日志较吵;长远应在 URDF/SRDF 中补全夹爪
-- [ ] 夹爪无力反馈,合爪宽度按物体类型经验估计(`_get_grasp_width`)
-- [ ] 本机 Docker 的跨容器 DDS 数据不通,ROS 节点须与 Isaac Sim 分容器时需注意
-      (move_group/converter/main.py 在同一容器内运行没有问题)
+# 每人独立输出目录、容器名和 ROS Domain；先与其他使用者协调 GPU。
+source .env.example  # 示例配置为 drs；其他同学应修改身份与 Domain
+python3 scripts/check_assets.py
+bash scripts/arm.sh check
+bash scripts/arm.sh init
 
-## 与 ../vision/ 的关系
+# 默认：短平行夹爪 + 苹果/香蕉/杯子场景
+bash scripts/arm.sh up
+bash scripts/arm.sh status
+```
 
-两项目共享同一套 modules 设计;`vision/` 面向实物相机(SAM vit_b、抓取高度更低、
-支持自定义抓取朝向),本项目面向 Isaac Sim(SAM vit_h、含 go_home 流程)。
-修改公共逻辑时请两边同步。
+先在宿主机查看 `.runtime/<user>/sim/sim.log`，等待场景和相机就绪，再执行：
+
+```bash
+# 先检查计划，不驱动仿真
+bash scripts/arm.sh agent --dry-run
+
+# 新运行必须使用全新的 run-id，避免覆盖历史结果
+bash scripts/arm.sh agent --run-id my_first_sort --reset-scene --record
+bash scripts/arm.sh audit --run-id my_first_sort
+
+# 停止当前用户配置的两只容器
+bash scripts/arm.sh stop
+```
+
+LLM 模式可用 `agent --planner llm --api-base <HTTPS接口> --model <模型名>`；运行时通过 `ROBOT_LLM_API_KEY` 或 `--api-key-stdin` 提供凭据。默认规则规划无需 API。API 可用性取决于所选服务。
+
+切换场景前先停止当前容器，再将 `sim_scene/runtime_optimized.json`、`runtime_short_parallel.json` 或 `runtime_destinations.json` 复制到 `$ARM_RUN_ROOT/sim/runtime_config.json`（默认 `.runtime/<user>/sim/`），然后启动。方块场景使用 `feedback` 单技能入口；`agent` 当前要求 everyday + short_parallel。
+
+## 仓库结构
+
+```text
+main.py                  原交互式视觉抓放入口
+feedback_runner.py       反馈抓放入口
+modules/                 视觉、几何、策略、运动与场景适配
+agent_workflow/          指令规划、校验、顺序执行、独立审计
+sim_scene/              仿真桥接、运行配置与历史诊断脚本
+scripts/arm.sh           当前统一宿主机启动入口
+scenes/workbench/        已收录的初始 USD 场景
+assets/ycb/              日常物体网格和纹理
+ros2/ur5_moveit_config/  ws 的 MoveIt 配置源码快照
+tests/                  单元检查、仿真实验和评估工具
+docs/                   环境、演示、评分证据与迁移记录
+.runtime/               每用户运行结果与缓存（不提交）
+```
+
+原项目提交历史完整保留；最近实验源码已并入本仓库。历史实验目录继续归档，后续开发以此仓库为准。历史诊断脚本保留了机器路径，统一入口使用 `scripts/arm.sh`。[迁移记录](docs/MIGRATION.md)
+
+## 验证与参与
+
+```bash
+python -m unittest discover -s tests -p test_feedback.py
+python -m unittest discover -s tests -p test_performance.py
+python agent_workflow/test_workflow.py
+python scripts/check_assets.py
+```
+
+检查范围和已知限制见 [验证记录](docs/VALIDATION.md)。每位同学独立克隆、按任务开分支，通过合并请求集成；分工与验收建议见 [CONTRIBUTING.md](CONTRIBUTING.md)。

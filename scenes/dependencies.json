@@ -1,0 +1,13 @@
+{
+  "scene": "scenes/workbench/workbench.usd",
+  "geometry_layers": 1,
+  "isaac_builtin_materials": [
+    "OmniGlass.mdl",
+    "OmniPBR.mdl"
+  ],
+  "legacy_material_references_unverified": [
+    "http:/omniverse-content-production.s3-us-west-2.amazonaws.com/Materials/Base/Metals/Aluminum_Anodized.mdl",
+    "http:/omniverse-content-production.s3-us-west-2.amazonaws.com/Materials/Base/Metals/Aluminum_Cast.mdl",
+    "http:/omniverse-content-production.s3-us-west-2.amazonaws.com/Materials/Base/Plastics/Plastic_ABS.mdl"
+  ]
+}

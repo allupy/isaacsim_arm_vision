@@ -1,0 +1,67 @@
+[
+  {
+    "path": "scenes/workbench/workbench.usd",
+    "size": 16885680,
+    "sha256": "35ad2adb48b4a7cb68c59b597fdaff08da673703c32f9a7adb9204756774bbe4"
+  },
+  {
+    "path": "assets/ycb/011_banana/google_16k/kinbody.xml",
+    "size": 188,
+    "sha256": "603a31070fd97eb82fa85024071fb880105c9bf5f044085b50b7bef9609d111f"
+  },
+  {
+    "path": "assets/ycb/011_banana/google_16k/texture_map.png",
+    "size": 3979031,
+    "sha256": "a5d70629ee8cff461e25f5c0aa87651746e3c9e405674dc6a20446f824d9d97a"
+  },
+  {
+    "path": "assets/ycb/011_banana/google_16k/textured.mtl",
+    "size": 66,
+    "sha256": "a779e1d8a29bdbc18ee724b7faa2e1e53591cbc2ee451ff38c64df7222c3f31e"
+  },
+  {
+    "path": "assets/ycb/011_banana/google_16k/textured.obj",
+    "size": 1431169,
+    "sha256": "6f9bc2218bf6ff483e8397c664ddb6c25603a37d9ffb7f4127ea66ee99e61619"
+  },
+  {
+    "path": "assets/ycb/013_apple/google_16k/kinbody.xml",
+    "size": 186,
+    "sha256": "c2be742b7371d69644c3206e96d6f3e4f81f887f19620ae93c7fcb38f0016c63"
+  },
+  {
+    "path": "assets/ycb/013_apple/google_16k/texture_map.png",
+    "size": 4175099,
+    "sha256": "6fa13963ac7fec6d4819b6ebf0e4c5d54c6f339d5d7174ae5230f36abec30d56"
+  },
+  {
+    "path": "assets/ycb/013_apple/google_16k/textured.mtl",
+    "size": 66,
+    "sha256": "a779e1d8a29bdbc18ee724b7faa2e1e53591cbc2ee451ff38c64df7222c3f31e"
+  },
+  {
+    "path": "assets/ycb/013_apple/google_16k/textured.obj",
+    "size": 1430494,
+    "sha256": "f32e694c0473b6858fcfb6f5b53a742e9cdedce2fb488bd5a5666d37354f87df"
+  },
+  {
+    "path": "assets/ycb/025_mug/google_16k/kinbody.xml",
+    "size": 182,
+    "sha256": "602710ac679f8a3f8d562a808017d9a7dd8cd8a4167cad233fa707f2e555f90c"
+  },
+  {
+    "path": "assets/ycb/025_mug/google_16k/texture_map.png",
+    "size": 5777448,
+    "sha256": "1131a0ee591d59e0a77e55ff9d72aeac07af76a0f9ed09cbd01489498649ef1f"
+  },
+  {
+    "path": "assets/ycb/025_mug/google_16k/textured.mtl",
+    "size": 66,
+    "sha256": "a779e1d8a29bdbc18ee724b7faa2e1e53591cbc2ee451ff38c64df7222c3f31e"
+  },
+  {
+    "path": "assets/ycb/025_mug/google_16k/textured.obj",
+    "size": 1489543,
+    "sha256": "2d40b407e9e97402de788bebaa703ff03d682da95318db5ff9bfa1aa083b3a57"
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "instruction": "把苹果放到水果区，再把杯子放到杯子区",
+  "planner": "llm",
+  "steps": [
+    {
+      "target": "apple",
+      "destination": "fruit_zone",
+      "skill": "pick_and_place"
+    },
+    {
+      "target": "cup",
+      "destination": "cup_zone",
+      "skill": "pick_and_place"
+    }
+  ],
+  "zones": {
+    "fruit_zone": [
+      0.35,
+      -0.3
+    ],
+    "cup_zone": [
+      0.49,
+      -0.3
+    ]
+  },
+  "surface_heights": {
+    "apple": 0.052,
+    "cup": 0.058
+  },
+  "llm_response": {
+    "model": "qwen3.8-chat",
+    "usage": {
+      "completion_tokens": 70,
+      "prompt_tokens": 137,
+      "total_tokens": 207,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "plan": [
+      {
+        "target": "apple",
+        "destination": "fruit_zone",
+        "skill": "pick_and_place"
+      },
+      {
+        "target": "cup",
+        "destination": "cup_zone",
+        "skill": "pick_and_place"
+      }
+    ]
+  }
+}

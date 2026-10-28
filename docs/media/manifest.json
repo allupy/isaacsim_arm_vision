@@ -1,0 +1,30 @@
+[
+  {
+    "path": "everyday-objects.mp4",
+    "frames": 3030,
+    "fps": 30.0,
+    "duration_s": 101.0,
+    "size": 4256521
+  },
+  {
+    "path": "multicolor-cubes.mp4",
+    "frames": 1404,
+    "fps": 30.0,
+    "duration_s": 46.8,
+    "size": 1990798
+  },
+  {
+    "path": "physical-destinations-prototype.mp4",
+    "frames": 2365,
+    "fps": 30.0,
+    "duration_s": 78.83333333333333,
+    "size": 2291959
+  },
+  {
+    "path": "tabletop-agent.mp4",
+    "frames": 2492,
+    "fps": 30.0,
+    "duration_s": 83.06666666666666,
+    "size": 1911437
+  }
+]

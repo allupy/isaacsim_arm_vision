@@ -1,0 +1,51 @@
+{
+  "agent_success": true,
+  "steps": [
+    {
+      "available": true,
+      "target": "apple",
+      "initial": [
+        0.517998218536377,
+        -0.17019273340702057,
+        0.03165604546666145
+      ],
+      "final": [
+        0.34564557671546936,
+        -0.30265653133392334,
+        0.031700581312179565
+      ],
+      "lifted": true,
+      "max_lift": 0.26431072875857353,
+      "placement_xy_error": 0.0051008000224454,
+      "placement_height_error": 4.453584551811218e-05,
+      "selected_visual_target": "apple",
+      "requested_target": "apple",
+      "target_selection_correct": true,
+      "task_success": true
+    },
+    {
+      "available": true,
+      "target": "cup",
+      "initial": [
+        0.5103269815444946,
+        0.14002330601215363,
+        0.033506572246551514
+      ],
+      "final": [
+        0.4966731369495392,
+        -0.30032190680503845,
+        0.033506497740745544
+      ],
+      "lifted": true,
+      "max_lift": 0.25903770327568054,
+      "placement_xy_error": 0.006680896701673759,
+      "placement_height_error": 7.450580596923828e-08,
+      "selected_visual_target": "cup",
+      "requested_target": "cup",
+      "target_selection_correct": true,
+      "task_success": true
+    }
+  ],
+  "apple_motion_between_steps_m": 6.674406255472048e-08,
+  "verified_success": true
+}

@@ -1,0 +1,1 @@
+{"optimized": true, "embedded_trajectory": true, "physics_batch": 4, "render_period": 0.05, "camera_period": 0.20, "wrist_resolution": [640,360], "gripper_profile": "short_parallel", "demo_scene": "everyday"}

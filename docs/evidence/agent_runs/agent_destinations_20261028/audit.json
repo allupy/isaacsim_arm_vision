@@ -1,0 +1,71 @@
+{
+  "agent_success": true,
+  "steps": [
+    {
+      "available": true,
+      "target": "apple",
+      "initial": [
+        0.5179982781410217,
+        -0.17019271850585938,
+        0.03165604546666145
+      ],
+      "final": [
+        0.33878880739212036,
+        -0.27283769845962524,
+        0.038752324879169464
+      ],
+      "lifted": true,
+      "max_lift": 0.26516978070139885,
+      "placement_xy_error": 0.00923556538191077,
+      "placement_height_error": 0.0009037205874919893,
+      "selected_visual_target": "apple",
+      "requested_target": "apple",
+      "target_selection_correct": true,
+      "destination_fixture": {
+        "name": "plate",
+        "center": [
+          0.33,
+          -0.27,
+          0.018
+        ],
+        "radius": 0.067
+      },
+      "placement_xy_limit": 0.043000000000000003,
+      "task_success": true
+    },
+    {
+      "available": true,
+      "target": "cup",
+      "initial": [
+        0.5103269815444946,
+        0.14002330601215363,
+        0.033506572246551514
+      ],
+      "final": [
+        0.5329615473747253,
+        -0.2845776379108429,
+        0.09349440783262253
+      ],
+      "lifted": true,
+      "max_lift": 0.2615576684474945,
+      "placement_xy_error": 0.02742321442158105,
+      "placement_height_error": 1.2164413928997253e-05,
+      "selected_visual_target": "cup",
+      "requested_target": "cup",
+      "target_selection_correct": true,
+      "destination_fixture": {
+        "name": "cup_stand",
+        "center": [
+          0.56,
+          -0.28,
+          0.07
+        ],
+        "radius": 0.055
+      },
+      "placement_xy_limit": 0.020999999999999998,
+      "task_success": false
+    }
+  ],
+  "apple_motion_between_steps_m": 6.674406255472048e-08,
+  "verified_success": false
+}

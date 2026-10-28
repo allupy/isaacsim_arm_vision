@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "completed_steps": 2,
+  "results": [
+    {
+      "success": true,
+      "reason": "",
+      "result_path": "/home/aluupy/arm_feedback_experiments/20261027/runs/agent_llm_video_20261028_1/result.json",
+      "target": "apple",
+      "destination": "fruit_zone",
+      "lift_verified": true,
+      "elapsed_s": 16.537724714027718
+    },
+    {
+      "success": true,
+      "reason": "",
+      "result_path": "/home/aluupy/arm_feedback_experiments/20261027/runs/agent_llm_video_20261028_2/result.json",
+      "target": "cup",
+      "destination": "cup_zone",
+      "lift_verified": true,
+      "elapsed_s": 18.789733372046612
+    }
+  ]
+}
