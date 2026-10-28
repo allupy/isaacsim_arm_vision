@@ -106,6 +106,7 @@ class DetectionManager:
                 verbose=False,
                 max_det=self.config.max_detections,
                 retina_masks=True,
+                imgsz=int(getattr(self.config, "inference_imgsz", 1280)),
             )
 
             detections: List[Detection] = []

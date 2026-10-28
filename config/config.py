@@ -41,8 +41,8 @@ class DetectorConfig:
     """检测器配置(检测 + 分割 + 相机 + 机械臂)"""
     save_dir: str = "detection_results"
     default_classes: List[str] = field(default_factory=lambda: ["cube"])
-    model_path: str = "yolov8s-world.pt"
-    confidence_threshold: float = 0.1
+    model_path: str = "yolov8s-worldv2.pt"
+    confidence_threshold: float = 0.02
     max_detections: int = 20
     display_stats: bool = True
     auto_save: bool = True
