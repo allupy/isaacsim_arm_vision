@@ -1,599 +1,192 @@
 #!/usr/bin/env python3
-"""
-视觉机械臂抓取主程序(Isaac Sim 版)
-
-流程:订阅 /rgb /depth → YOLO-World 检测 + SAM 分割(最优目标)
-     → 掩码质心 + 深度 → 相机系 3D → 手眼外参 → 基座系坐标
-     → 机械臂抓取放置。
-显示在独立进程中运行(cv2.imshow 与 ROS 回调分离)。
-"""
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-import numpy as np
-import time
-import tf2_ros
-import cv2
-import multiprocessing as mp
-
-from modules.detection_manager import DetectionManager
-from modules.keyboard_handler import KeyboardHandler
-from modules.io_manager import IOManager
-from modules.class_manager import ClassManager
-from modules.utils import (quaternion_to_euler, build_transform_from_matrix,
-                           build_transform, quaternion_to_matrix)
-from modules.pose_estimation import estimate_object_pose
-from modules.arm_manager import ArmControllerWithGripper
-from config.config import DetectorConfig
-
-# 实时帧发送到显示进程的节流间隔(秒)
-LIVE_SEND_INTERVAL = 1.0 / 15
-
-
-class VideoRecorder:
-    """轻量视频录制(cv2.VideoWriter,无头可用)"""
-
-    def __init__(self, path, fps=15.0, size=(1280, 720)):
-        self.path = path
-        self.fps = fps
-        self.size = size
-        self.writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'mp4v'),
-                                      fps, size)
-        self._last = 0.0
-        self.frames = 0
-
-    def write(self, img, throttle=True):
-        if img is None:
-            return
-        now = time.time()
-        if throttle and now - self._last < 1.0 / self.fps:
-            return
-        self._last = now
-        if img.shape[1] != self.size[0] or img.shape[0] != self.size[1]:
-            img = cv2.resize(img, self.size)
-        self.writer.write(img)
-        self.frames += 1
-
-    def release(self):
-        try:
-            self.writer.release()
-            print(f"🎥 视频已保存: {self.path} ({self.frames} 帧)")
-        except Exception:
-            pass
-
-
-def display_process(image_queue, exit_event, window_name="Detection"):
-    """独立显示进程:负责 cv2.imshow 与键盘事件(ESC退出)"""
-    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(window_name, 1280, 720)
-
-    print(f"📺 显示进程已启动 (PID: {mp.current_process().pid})")
-
-    while not exit_event.is_set():
-        try:
-            if not image_queue.empty():
-                img = image_queue.get_nowait()
-                cv2.imshow(window_name, img)
-
-            key = cv2.waitKey(1) & 0xFF
-            if key == 27:  # ESC
-                exit_event.set()
-        except Exception as e:
-            print(f"⚠️ 显示进程出错: {e}")
-            continue
-
-    cv2.destroyAllWindows()
-    print("📺 显示进程已退出")
-
-
-class EnhancedDetectorNode(Node):
-    """ROS2 检测 + 抓取主节点"""
-
-    def __init__(self, config: DetectorConfig, interactive: bool = True,
-                 observe_only: bool = False, rgb_topic='/rgb', depth_topic='/depth'):
-        super().__init__('enhanced_detector')
-
-        self.config = config
-        self.interactive = interactive
-        self.observe_only = observe_only
-        self.rgb_topic, self.depth_topic = rgb_topic, depth_topic
-        self.bridge = CvBridge()
-
-        # TF(末端执行器位姿)
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
-        self.ee_frame = 'wrist_3_link'
-        self.base_frame = 'base_link'
-        self.R_cam2gripper, self.t_cam2gripper = config.get_cam2gripper_pose()
-
-        # 相机内参(来自配置,默认 D455 1280x720)
-        self.camera_matrix = config.camera_matrix
-        self.dist_coeffs = config.dist_coeffs
-
-        # 最新帧缓存
-        self.current_rgb = None
-        self.current_depth = None
-        self.current_robot_pose = None
-
-        # 检测结果显示状态(结果帧只发送一次,窗口会保持最后一帧)
-        self.show_result = False
-        self.result_img = None
-        self.result_show_start = 0.0
-        self.result_show_duration = 3.0
-        self._result_sent = False
-        self._last_live_send = 0.0
-
-        self.io_manager = IOManager(config.save_dir)
-        # 视频录制(无头/交互模式均可用)
-        self.recorder = None
-        if getattr(config, 'record_video', False):
-            video_path = getattr(config, 'video_path', 'detection_results/session.mp4')
-            self.recorder = VideoRecorder(video_path, fps=15.0, size=(1280, 720))
-
-        # 显示进程(仅交互模式;无头环境没有 X11)
-        if self.interactive:
-            self.mp_context = mp.get_context('spawn')
-            self.image_queue = self.mp_context.Queue(maxsize=5)
-            self.exit_event = self.mp_context.Event()
-            self.display_proc = self.mp_context.Process(
-                target=display_process,
-                args=(self.image_queue, self.exit_event, "Detection")
-            )
-            self.display_proc.start()
-
-        # 模块初始化
-        if self.interactive:
-            self.keyboard_handler = KeyboardHandler()
-        self.arm_controller = None if self.observe_only else self._create_arm_controller()
-
-        self.class_manager = ClassManager(config.default_classes)
-        self.class_manager.on_classes_changed = self._on_classes_changed
-
-        self.detection_manager = DetectionManager(config)
-
-        self._setup_subscribers()
-        self.running = True
-        self._print_welcome()
-
-    def _setup_subscribers(self):
-        """订阅 RGB 与深度(取最新帧;时间同步是已知待改进项,见 README)"""
-        self.rgb_sub = self.create_subscription(Image, self.rgb_topic, self.rgb_callback, 10)
-        self.depth_sub = self.create_subscription(Image, self.depth_topic, self.depth_callback, 10)
-        self.get_logger().info("已启用RGB-D订阅（无时间同步）")
-
-    def _create_arm_controller(self):
-        """按配置创建机械臂控制器:moveit(MoveItPy 规划)或 ik(IK 服务),moveit 失败自动降级"""
-        mode = getattr(self.config, 'controller', 'ik')
-        if mode == 'moveit':
-            try:
-                from modules.moveit_controller import MoveItArmController
-                controller = MoveItArmController(self, params=self.config.arm)
-                self.get_logger().info("机械臂控制器: MoveItPy(OMPL 规划)")
-                return controller
-            except Exception as e:
-                self.get_logger().error(f"MoveItPy 控制器初始化失败: {e},降级为 IK 模式")
-        controller = ArmControllerWithGripper(self, params=self.config.arm)
-        self.get_logger().info("机械臂控制器: IK 服务")
-        return controller
-
-    def rgb_callback(self, msg):
-        try:
-            self.current_rgb = self.bridge.imgmsg_to_cv2(msg, "bgr8")
-            # 录制:检测结果展示期录结果帧,其余时间录实时帧
-            if self.recorder is not None:
-                if self.show_result and self.result_img is not None:
-                    self.recorder.write(self.result_img)
-                else:
-                    self.recorder.write(self.current_rgb)
-        except Exception as e:
-            self.get_logger().error(f"RGB回调失败: {e}")
-
-    def depth_callback(self, msg):
-        try:
-            self.current_depth = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-        except Exception as e:
-            self.get_logger().error(f"深度回调失败: {e}")
-
-    # ------------------------------------------------------------------
-    # 显示
-    # ------------------------------------------------------------------
-    def send_to_display(self, img):
-        """发送图像到显示进程(队列满则丢弃,不阻塞主循环)"""
-        try:
-            if not self.image_queue.full():
-                self.image_queue.put_nowait(img.copy())
-            return True
-        except Exception as e:
-            self.get_logger().warn(f"发送图像到显示进程失败: {e}")
-            return False
-
-    def _manage_display(self):
-        """结果帧只发一次;实时帧按 LIVE_SEND_INTERVAL 节流发送(仅交互模式)"""
-        if not self.interactive:
-            return
-        current_time = time.time()
-
-        if self.show_result and self.result_img is not None:
-            if current_time - self.result_show_start < self.result_show_duration:
-                if not self._result_sent:
-                    self.send_to_display(self.result_img)
-                    self._result_sent = True
-            else:
-                # 超时切回实时帧
-                self.show_result = False
-                self.result_img = None
-                self._result_sent = False
-        elif self.current_rgb is not None:
-            if current_time - self._last_live_send >= LIVE_SEND_INTERVAL:
-                if self.send_to_display(self.current_rgb):
-                    self._last_live_send = current_time
-
-    # ------------------------------------------------------------------
-    # 帧与位姿获取
-    # ------------------------------------------------------------------
-    def get_current_frames(self):
-        """
-        获取当前 RGB、深度与末端位姿。
-        位姿获取失败时回退到上一次成功值(而非未定义变量)。
-        """
-        rgb = self.current_rgb.copy() if self.current_rgb is not None else None
-        depth = self.current_depth.copy() if self.current_depth is not None else None
-
-        pose = None
-        success, robot_pose = self.get_robot_pose()
-        if success and robot_pose is not None:
-            self.current_robot_pose = robot_pose
-            pose = robot_pose
-        elif self.current_robot_pose is not None:
-            pose = self.current_robot_pose
-
-        return rgb, depth, pose
-
-    def get_robot_pose(self):
-        """获取末端执行器在基座系下的位姿(TF)"""
-        try:
-            transform = self.tf_buffer.lookup_transform(
-                self.base_frame, self.ee_frame,
-                rclpy.time.Time(),
-                timeout=rclpy.duration.Duration(seconds=1.0)
-            )
-            t = transform.transform.translation
-            r = transform.transform.rotation
-            R_ee2base = quaternion_to_matrix([r.x, r.y, r.z, r.w])
-            return True, {
-                'position': [float(t.x), float(t.y), float(t.z)],
-                'orientation_quat': [float(r.x), float(r.y), float(r.z), float(r.w)],
-                'rotation_matrix': R_ee2base,
-                'base_frame': self.base_frame,
-                'ee_frame': self.ee_frame
-            }
-        except Exception as e:
-            self.get_logger().error(f"获取机器人位姿失败: {e}")
-            return False, None
-
-    # ------------------------------------------------------------------
-    # 位姿估计:见 modules/pose_estimation.py(6D,含方块边缘朝向)
-    # ------------------------------------------------------------------
-
-    # ------------------------------------------------------------------
-    # 命令处理
-    # ------------------------------------------------------------------
-    def _print_welcome(self):
-        print("\n" + "=" * 60)
-        print("🎯 视觉机械臂抓取(Isaac Sim 版)")
-        print("=" * 60)
-        print(f"\n当前检测类别: {self.class_manager.format_classes_display()}")
-        print(f"保存目录: {self.io_manager.save_dir.absolute()}")
-        print(f"YOLO 权重: {self.config.model_path}")
-        print(f"阈值: {self.config.confidence_threshold}; 推理尺寸: {self.config.inference_imgsz}")
-        print(f"SAM: {self.config.sam_model_type}; {self.config.sam_checkpoint}")
-        print(f"相机话题: {self.rgb_topic}, {self.depth_topic}")
-        print('此入口保留旧两阶段抓取流程；反馈闭环请使用 feedback_runner.py / scripts/arm.sh')
-        if self.observe_only:
-            print('仅观察模式：不创建机械臂控制器，不发送运动指令')
-        if self.interactive:
-            print(f"显示进程PID: {self.display_proc.pid}")
-        self._print_help()
-
-    def _print_help(self):
-        print("\n📋 快捷键:")
-        print("  [d] 仅检测并保存" if self.observe_only else "  [d] 实时检测当前帧并抓取最优目标(可配两阶段)")
-        print("  [s] 拍照并保存检测结果")
-        print("  [c] 修改检测类别")
-        print("  [r] 机械臂归位")
-        print("  [l] 显示历史记录")
-        print("  [h] 显示此帮助")
-        print("  [q] 退出程序")
-        print("  [ESC] 关闭显示窗口")
-        print("=" * 60)
-
-    def _on_classes_changed(self, classes: list):
-        self.detection_manager.set_classes(classes)
-        print(f"\n✅ 检测类别已更新: {self.class_manager.format_classes_display()}")
-
-    def process_command(self, command: str):
-        if command == 'p':
-            success, robot_pose = self.get_robot_pose()
-            print('机械臂位置获取延迟测试')
-            print(f'机械臂位置: {robot_pose}')
-        elif command == 'd':
-            self._command_detect()
-        elif command == 's':
-            self._command_save()
-        elif command == 'c':
-            self._command_change_classes()
-        elif command == 'r':
-            if self.arm_controller is None:
-                print('仅观察模式不执行归位')
-                return
-            status = self.arm_controller.get_status()
-            print(status)
-            self.arm_controller.go_home()
-        elif command == 'l':
-            self._command_show_history()
-        elif command == 'h':
-            self._print_help()
-        elif command == 'q':
-            self.running = False
-            print("\n🛑 正在退出...")
-        else:
-            print(f"\n❌ 未知命令: {command}，输入 'h' 查看帮助")
-
-    def _estimate_from_frames(self, rgb, depth, robot_pose):
-        """检测 + 分割 + 6D 估计,返回 (x, y, z, quat, result_img) 或 None"""
-        result_img, detections = self.detection_manager.detect(rgb)
-        if result_img is not None and self.interactive:
-            self.result_img = result_img.copy()
-            self.show_result = True
-            self.result_show_start = time.time()
-            self._result_sent = False
-        if not detections:
-            print(f'YOLO 无检测框：类别={self.detection_manager.classes}, 阈值={self.config.confidence_threshold}')
-            return None
-        best = max(detections, key=lambda d: d.confidence)
-        if best.mask is None or not best.mask.any():
-            print(f"SAM 无有效掩码：YOLO 已检测到 {best.class_name} ({best.confidence:.3f})，不能据此执行抓取")
-            return None
-        x, y, z, quat = estimate_object_pose(
-            rgb, depth, robot_pose, best.mask,
-            self.camera_matrix, self.R_cam2gripper, self.t_cam2gripper,
-            yaw_offset_deg=getattr(self.config, 'grasp_yaw_offset_deg', 0.0),
-        )
-        return x, y, z, quat, result_img
-
-    def _command_detect(self) -> bool:
-        """实时检测 + 抓取置信度最高的目标(含两阶段位姿估计)"""
-        if self.observe_only:
-            return self._command_observe()
-        rgb, depth, robot_pose = self.get_current_frames()
-        if rgb is None:
-            print("❌ 错误: 没有可用的图像帧")
-            return False
-        if depth is None:
-            print("❌ 错误: 没有可用的深度帧")
-            return False
-        if robot_pose is None:
-            print("❌ 错误: 未能获取机械臂位姿(TF不可用),无法做位姿估计")
-            return False
-
-        print("\n🎯 运行实时检测...")
-        est = self._estimate_from_frames(rgb, depth, robot_pose)
-        if est is None:
-            print("❌ 检测或分割/位姿估计未通过，详见上方分阶段信息")
-            return False
-        x, y, z, quat, _ = est
-        print(f"[阶段1] 物体位置({x:.3f},{y:.3f},{z:.3f}) 抓取朝向 quat=["
-              f"{quat[0]:.2f},{quat[1]:.2f},{quat[2]:.2f},{quat[3]:.2f}]")
-
-        # 抓取 z:默认取 0(桌面高度);use_estimated_z=True 时用深度估计值
-        grasp_z = z if self.config.use_estimated_z else 0.0
-
-        # ------------------------------------------------------------------
-        # 两阶段抓取:先运动到目标上方,再一次检测+位姿估计。
-        # 距离更近、视角更正,第二阶段的估计误差显著更小。
-        # ------------------------------------------------------------------
-        if getattr(self.config, 'two_stage_grasp', False):
-            above = [x, y, grasp_z + self.arm_controller.approach_height]
-            print(f"[两阶段] 运动到目标上方: {above}")
-            if not self.arm_controller.move_to_position(above, duration=3.0):
-                print("[两阶段] 运动失败,使用第一阶段估计继续")
-            else:
-                time.sleep(1.0)  # 等待机械臂稳定、图像刷新
-                rgb2, depth2, pose2 = self.get_current_frames()
-                if rgb2 is None or depth2 is None or pose2 is None:
-                    print("[两阶段] 第二次取帧失败,沿用第一阶段结果")
-                else:
-                    est2 = self._estimate_from_frames(rgb2, depth2, pose2)
-                    if est2 is None:
-                        print("[两阶段] 第二次估计失败,沿用第一阶段结果")
-                    else:
-                        x, y, z, quat, _ = est2
-                        grasp_z = z if self.config.use_estimated_z else 0.0
-                        print(f"[阶段2] 重新估计({x:.3f},{y:.3f},{z:.3f}) quat=["
-                              f"{quat[0]:.2f},{quat[1]:.2f},{quat[2]:.2f},{quat[3]:.2f}]")
-
-        ok = self.arm_controller.execute_pick_place(
-            [x, y, grasp_z],
-            place_position=[0.0, -0.5, 0.10],
-            grasp_quat=list(quat),
-        )
-        print("✅ 抓取完成" if ok else "❌ 抓取失败")
-        return ok
-
-    def _command_observe(self) -> bool:
-        """Report detector and segmenter outcomes without TF or motion services."""
-        if self.current_rgb is None:
-            print('没有收到 RGB，请检查 ROS_DOMAIN_ID、相机话题和发布者')
-            return False
-        self._command_save()
-        return bool(self._last_saved_detections)
-
-    def _command_save(self):
-        """拍照并保存检测结果"""
-        rgb = self.current_rgb
-        if rgb is None:
-            print("❌ 错误: 没有可用的图像帧")
-            return
-
-        print("\n📸 拍照并保存检测结果...")
-        result_img, detections = self.detection_manager.detect(rgb)
-        self._last_saved_detections = detections
-        print(f'YOLO 框数: {len(detections)}; 有效 SAM 掩码数: '
-              f'{sum(d.mask is not None and bool(d.mask.any()) for d in detections)}')
-        for detection in detections:
-            print(f'  {detection.class_name}: {detection.confidence:.4f}')
-
-        if result_img is not None:
-            self.result_img = result_img.copy()
-            self.show_result = True
-            self.result_show_start = time.time()
-            self._result_sent = False
-
-            saved_files = self.io_manager.save_detection_result(
-                raw_image=rgb,
-                result_image=result_img,
-                detections=detections,
-                classes=self.class_manager.get_classes()
-            )
-            print(f"\n💾 检测结果已保存:")
-            print(f"  原始图像: {saved_files['raw']}")
-            print(f"  结果图像: {saved_files['result']}")
-            print(f"  检测信息: {saved_files['info']}")
-            print(f"  JSON数据: {saved_files['json']}")
-
-    def _command_change_classes(self):
-        print("\n" + "=" * 60)
-        print("📝 修改检测类别")
-        print("=" * 60)
-        print(f"当前类别: {self.class_manager.format_classes_display()}")
-        print("\n💡 输入新的检测类别（用逗号分隔，输入 'reset' 重置，'cancel' 取消）")
-        print("示例: person,car,dog,cat")
-        print("-" * 40)
-
-        user_input = self.keyboard_handler.get_blocking_input("\n请输入新类别: ")
-        if user_input is None:
-            return
-
-        new_classes = self.class_manager.parse_input(user_input)
-        if new_classes is None:
-            print("取消修改")
-        elif new_classes == []:
-            self.class_manager.reset_to_default()
-        else:
-            self.class_manager.set_classes(new_classes)
-
-    def _command_show_history(self):
-        print("\n" + "=" * 60)
-        print("📊 检测历史")
-        print("=" * 60)
-
-        history = self.io_manager.load_history(limit=5)
-        if not history:
-            print("暂无检测记录")
-            return
-
-        print(f"找到 {len(history)} 条最近的检测记录:\n")
-        for i, record in enumerate(history, 1):
-            print(f"{i}. 时间: {record['timestamp']}")
-            print(f"   检测数: {record['detections_count']}")
-            print(f"   类别: {', '.join([c for c in record['classes'] if c])}")
-            print()
-
-    # ------------------------------------------------------------------
-    # 主循环与清理
-    # ------------------------------------------------------------------
-    def run(self, once: bool = False):
-        """once=True: 无头单次模式——等待数据就绪后执行一轮检测+抓取即退出"""
-        if once:
-            print("🎬 无头单次模式:等待 RGB..." if self.observe_only else "🎬 无头单次模式:等待图像与TF就绪...")
-            deadline = time.time() + 60
-            while time.time() < deadline:
-                rclpy.spin_once(self, timeout_sec=0.05)
-                if self.observe_only and self.current_rgb is not None:
-                    break
-                if self.current_rgb is not None and self.current_depth is not None:
-                    pose_ok, _ = self.get_robot_pose()
-                    if pose_ok:
-                        break
-            time.sleep(2.0)  # 图像/TF 稳定
-            for _ in range(100):
-                rclpy.spin_once(self, timeout_sec=0.02)
-
-            ok = self._command_detect()
-            print(f"ONCE_RESULT {'OK' if ok else 'FAIL'}")
-            self.shutdown()
-            return ok
-
-        print("🎬 程序已启动，在命令行中输入命令")
-        try:
-            while rclpy.ok() and self.running:
-                rclpy.spin_once(self, timeout_sec=0.01)
-
-                self._manage_display()
-
-                if not self.display_proc.is_alive():
-                    print("⚠️ 显示进程已意外退出，程序将终止")
-                    self.running = False
-                    break
-
-                if self.exit_event.is_set():
-                    print("📺 显示窗口已关闭，程序将终止")
-                    self.running = False
-                    break
-
-                # 键盘轮询超时必须保持很短,否则会累积显示延迟
-                key = self.keyboard_handler.get_key(0.01)
-                if key:
-                    self.process_command(key)
-
-        except KeyboardInterrupt:
-            print("\n\n⏹️ 程序被用户中断")
-        except Exception as e:
-            print(f"\n❌ 程序出错: {e}")
-        finally:
-            self.shutdown()
-
-    def shutdown(self):
-        print("\n🧹 正在清理资源...")
-        if self.recorder is not None:
-            self.recorder.release()
-        shutdown_arm = getattr(self.arm_controller, 'shutdown', None)
-        if callable(shutdown_arm):
-            try:
-                shutdown_arm()
-            except Exception:
-                pass
-        if self.interactive:
-            self.exit_event.set()
-            if self.display_proc.is_alive():
-                self.display_proc.join(timeout=3)
-            self.keyboard_handler.restore()
-        self.destroy_node()
-        print("👋 程序已退出")
-
-
-def main():
-    from config.main_entry import parse_args, load_config
-    args = parse_args()
-    config = load_config(args)
-
-    rclpy.init()
+"""Interactive entry to the same feedback_runner.py closed-loop pipeline."""
+import argparse
+from contextlib import contextmanager
+from datetime import datetime
+import json
+import math
+import os
+from pathlib import Path
+import shlex
+import signal
+import subprocess
+import sys
+import uuid
+from modules.demo_command import parse_command
+
+ROOT = Path(__file__).resolve().parent
+HELP = '''
+d / grasp     完整闭环抓放
+o / s         只观察：保存同步图像、检测和定位结果，不创建运动控制器
+t apple       选目标；也支持 t 红色方块
+p fruit_zone  放置区：fruit_zone / cup_zone / plate / cup_stand
+p x y z       自定义放置表面世界坐标（米）
+c apple cup   自定义检测词；c auto 恢复按目标选择
+plan          显示下一次执行参数，不运行
+status        配置、相机状态与最近结果目录
+last          最近结果与独立评分
+v             相机快照（有桌面时显示，否则打印路径）
+h / help      帮助
+q / quit      退出
+运行中 Ctrl+C 请求闭环保持并结束任务，然后返回菜单。
+'''
+
+def parser():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--runtime-root',type=Path,default=Path('/experiment'))
+    p.add_argument('--output-root',type=Path)
+    p.add_argument('--config',default=str(ROOT/'config/default_config.yaml'))
+    p.add_argument('--target','--instruction',dest='target')
+    p.add_argument('--destination',choices=['fruit_zone','cup_zone','plate','cup_stand'])
+    p.add_argument('--place-surface',type=float,nargs=3)
+    p.add_argument('--classes',nargs='+')
+    p.add_argument('--confidence','--det-confidence',type=float,default=.02)
+    p.add_argument('--expected-gripper',choices=['short_parallel','robotiq_2f140'])
+    p.add_argument('--tcp-offset',type=float,default=.185)
+    p.add_argument('--home',type=float,nargs=3)
+    p.add_argument('--startup-timeout',type=float,default=180.)
+    p.add_argument('--sensor-timeout',type=float,default=25.)
+    p.add_argument('--once',action='store_true')
+    p.add_argument('--observe-only',action='store_true',help='整个会话禁用抓放，d 也只观察')
+    p.add_argument('--dry-run',action='store_true')
+    return p
+
+class Console:
+    def __init__(self,args):
+        self.args=args
+        if not 0<args.confidence<=1:raise ValueError('confidence must be in (0, 1]')
+        for values in [args.place_surface,args.home,[args.tcp_offset,args.startup_timeout,args.sensor_timeout]]:
+            if values is not None and not all(math.isfinite(v) for v in values):raise ValueError('参数必须为有限数字')
+        if min(args.tcp_offset,args.startup_timeout,args.sensor_timeout)<=0:raise ValueError('偏移和超时必须为正数')
+        path=args.runtime_root/'sim/runtime_config.json'
+        runtime=json.loads(path.read_text()) if path.exists() else {}
+        self.gripper=args.expected_gripper or runtime.get('gripper_profile','robotiq_2f140')
+        if self.gripper not in ['short_parallel','robotiq_2f140']:raise ValueError('未知夹爪配置')
+        self.target=parse_command(args.target or ('apple' if runtime.get('demo_scene')=='everyday' else 'red cube'))['target']
+        self.classes=args.classes
+        self.destination=args.destination
+        self.place=args.place_surface
+        if self.place and self.destination:raise ValueError('放置坐标与命名区域只能指定一个')
+        self.output_root=args.output_root or args.runtime_root/'runs'
+        self.last=None
+        self.blocked=False
+
+    def command(self,output,observe=False):
+        destination=self.destination or ('fruit_zone' if self.target=='apple' else 'cup_zone' if self.target=='cup' else None)
+        place=self.place or ([.35,-.30,.052] if self.target=='apple' else [.49,-.30,.058] if self.target=='cup' else [.4,-.3,.06])
+        if not self.place and destination in ['fruit_zone','cup_zone']:
+            place=([.35,-.30] if destination=='fruit_zone' else [.49,-.30])+[place[2]]
+        if destination in ['plate','cup_stand'] and self.target not in ['apple','cup']:raise ValueError('承托物仅校准了 apple/cup')
+        cmd=[sys.executable,'-u',str(ROOT/'feedback_runner.py'),'--output',str(output),'--config',self.args.config,
+             '--perception','yolo_sam','--instruction','Pick the '+self.target,'--det-confidence',str(self.args.confidence),
+             '--tcp-offset',str(self.args.tcp_offset),'--safe-z','.5','--expected-gripper',self.gripper,'--locked-sam-tracking',
+             '--home',*[str(v) for v in (self.args.home or ([.45,-.12,.5] if self.gripper=='short_parallel' else [.30,.25,.5]))],
+             '--place-surface',*[str(v) for v in place],'--startup-timeout',str(self.args.startup_timeout),
+             '--sensor-timeout',str(self.args.sensor_timeout)]
+        if self.classes:cmd+=['--classes',*self.classes]
+        if destination in ['plate','cup_stand']:cmd+=['--destination-tag',str(10 if destination=='plate' else 20)]
+        if observe or self.args.observe_only:cmd+=['--observe-only']
+        return cmd
+
+    @contextmanager
+    def lock(self):
+        path=self.args.runtime_root/'sim/agent_execution.lock'
+        path.parent.mkdir(parents=True,exist_ok=True)
+        try:path.mkdir()
+        except FileExistsError:raise RuntimeError('场景已被交互任务或 agent 占用，请检查运行状态') from None
+        try:yield
+        finally:path.rmdir()
+
+    def run(self,observe=False):
+        if self.blocked:raise RuntimeError('上次退出后运动状态未知；检查控制器后重新启动会话')
+        identifier='interactive_'+datetime.now().strftime('%Y%m%d_%H%M%S')+'_'+uuid.uuid4().hex[:8]
+        output=self.output_root/identifier
+        cmd=self.command(output,observe)
+        print('执行：'+shlex.join(cmd),flush=True)
+        self.output_root.mkdir(parents=True,exist_ok=True)
+        with self.lock(),(self.output_root/(identifier+'.console.log')).open('w',encoding='utf-8') as log:
+            process=subprocess.Popen(cmd,cwd=ROOT,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,
+                                     encoding='utf-8',errors='replace',start_new_session=True)
+            interrupted=False
+            while True:
+                try:
+                    line=process.stdout.readline()
+                    if not line:
+                        code=process.wait();break
+                    print(line,end='',flush=True);log.write(line);log.flush()
+                except KeyboardInterrupt:
+                    if not interrupted and process.poll() is None:
+                        process.send_signal(signal.SIGINT);interrupted=True
+                    print('正在等待闭环保持和清理',flush=True)
+        self.last=output
+        if output.exists():(output/'invocation.json').write_text(json.dumps(cmd,ensure_ascii=False,indent=2),encoding='utf-8')
+        path=output/'result.json'
+        result=json.loads(path.read_text()) if path.exists() else {}
+        if not result or code not in (0,2,130) or result.get('state_known') is False or result.get('reason','').startswith('runtime_error'):
+            self.blocked=True
+        if interrupted and result.get('reason')!='interrupted':self.blocked=True
+        print(f'返回码 {code}；结果目录：{output}',flush=True)
+        return code
+
+    def status(self):
+        print(json.dumps(dict(target=self.target,classes=self.classes or 'auto',destination=self.destination or 'auto',
+                             place_surface=self.place,gripper=self.gripper,observe_only=self.args.observe_only,
+                             blocked=self.blocked,last=str(self.last) if self.last else None),ensure_ascii=False,indent=2))
+        path=self.args.runtime_root/'sim/latest.json'
+        print(f'相机状态：{path}；'+('存在，请结合时间戳判断新鲜度' if path.exists() else '未找到，请先启动反馈仿真桥接'))
+
+    def dispatch(self,line):
+        words=shlex.split(line)
+        if not words:return True
+        key,*values=words
+        if key in ['q','quit']:return False
+        if key in ['h','help']:print(HELP)
+        elif key in ['d','grasp']:self.run()
+        elif key in ['o','s']:self.run(observe=True)
+        elif key=='t':
+            self.target=parse_command(' '.join(values))['target'];self.classes=None
+        elif key=='p':
+            if len(values)==1 and values[0] in ['fruit_zone','cup_zone','plate','cup_stand']:
+                self.destination,self.place=values[0],None
+            elif len(values)==3:
+                place=list(map(float,values))
+                if not all(math.isfinite(v) for v in place):raise ValueError('坐标必须为有限数字')
+                self.place,self.destination=place,None
+            else:raise ValueError('使用 p fruit_zone 或 p x y z')
+        elif key=='c':
+            if not values:raise ValueError('使用 c auto 或 c apple cup')
+            self.classes=None if values==['auto'] else values
+        elif key=='plan':print(shlex.join(self.command(self.output_root/'PREVIEW_ONLY')))
+        elif key=='status':self.status()
+        elif key=='last':print((self.last/'result.json').read_text() if self.last and (self.last/'result.json').exists() else '没有结果')
+        elif key=='v':
+            paths=[self.args.runtime_root/'sim'/f'{name}.png' for name in ['observer','wrist']]
+            print('\n'.join(map(str,paths)))
+            if os.environ.get('DISPLAY') and os.environ.get('QT_QPA_PLATFORM')!='offscreen':
+                import cv2
+                for path in paths:
+                    frame=cv2.imread(str(path))
+                    if frame is not None:cv2.imshow(path.stem,frame)
+                cv2.waitKey(0);cv2.destroyAllWindows()
+        else:raise ValueError('未知命令；输入 h 查看帮助')
+        return True
+
+def main(argv=None):
+    args=parser().parse_args(argv)
     try:
-        detector = EnhancedDetectorNode(config, interactive=not args.once,
-                                       observe_only=args.observe_only,
-                                       rgb_topic=args.rgb_topic, depth_topic=args.depth_topic)
-        ok = detector.run(once=args.once)
-        return 0 if not args.once or ok else 2
-    except Exception as e:
-        print(f"❌ 程序启动失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
-    finally:
-        if rclpy.ok():
-            rclpy.shutdown()
+        console=Console(args)
+        if args.dry_run:
+            print(shlex.join(console.command(console.output_root/'PREVIEW_ONLY')));return 0
+        if args.once:return console.run()
+        print('视觉机械臂交互台 · 与 feedback_runner.py 共用闭环执行流程')
+        print(HELP);console.status()
+        while True:
+            try:
+                if not console.dispatch(input('arm> ')):break
+            except (EOFError,KeyboardInterrupt):break
+            except (ValueError,RuntimeError,OSError) as exc:print('错误：'+str(exc))
+        return 0
+    except (ValueError,RuntimeError,OSError) as exc:
+        print('错误：'+str(exc),file=sys.stderr);return 2
 
-
-if __name__ == '__main__':
-    raise SystemExit(main())
+if __name__=='__main__':raise SystemExit(main())

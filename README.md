@@ -52,7 +52,7 @@ flowchart LR
 
 ## 当前能力与实验结果
 
-**入口说明**：近期闭环 Demo 使用 `feedback_runner.py`，通过 `scripts/arm.sh` 启动。`main.py` 仍是旧的交互式两阶段抓取流程；同仓同步不等于两条入口的控制逻辑相同。其检测配置已修正，并增加只观察模式，详见 [main.py 检查与修正](docs/MAIN_ENTRY_REVIEW.md)。
+**入口说明**：`main.py` 现在是 `feedback_runner.py` 的交互控制台。观察和抓放均调用同一闭环执行器，包含同步 RGB-D、近距离校正、目标锁定、提起/放置验证及独立评分。使用 `bash scripts/arm.sh interactive` 进入菜单，详见 [交互演示与调试](docs/INTERACTIVE.md)。
 
 | 模块 | 当前实现 |
 |---|---|
@@ -107,7 +107,7 @@ LLM 模式可用 `agent --planner llm --api-base <HTTPS接口> --model <模型�
 ## 仓库结构
 
 ```text
-main.py                  原交互式视觉抓放入口
+main.py                  闭环交互控制台（调用 feedback_runner.py）
 feedback_runner.py       反馈抓放入口
 modules/                 视觉、几何、策略、运动与场景适配
 agent_workflow/          指令规划、校验、顺序执行、独立审计
@@ -129,13 +129,13 @@ docs/                   环境、演示、评分证据与迁移记录
 
 ```bash
 # 三色方块场景：只检测、保存图像和置信度，不初始化机械臂控制器
-python3 main.py --once --observe-only --classes "red cube" "green cube" "blue cube"
+python3 main.py --once --observe-only --target "red cube"
 
 # 日常物体场景：类别必须与图像中的目标对应
-python3 main.py --once --observe-only --classes apple banana cup
+python3 main.py --once --observe-only --target apple
 ```
 
-启动日志打印最终权重路径、类别、阈值、SAM 型号和相机话题。YOLO 检测框、SAM 掩码和位姿估计失败分别诊断；阈值降低会增加误识别，不能代替场景验证。
+交互台打印完整执行参数，闭环执行器输出检测、状态转换和失败原因；每次运行保存独立日志、同步图像及 result.json。必须启动本仓库的反馈仿真桥接（含标定和相机请求协议），只有旧版 /rgb、/depth 发布者不足以运行此入口。阈值降低会增加误识别，不能代替场景验证。
 
 ```bash
 python -m unittest discover -s tests -p test_feedback.py

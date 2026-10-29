@@ -333,10 +333,11 @@ class FeedbackArmController(MoveItArmController):
 
     def hold(self):
         if time.monotonic()-self.measured_at > 2.:
-            return
+            return False
         msg = JointTrajectory()
         msg.joint_names = self.joint_names
         point = JointTrajectoryPoint()
         point.positions = self.get_current_joint_positions()+[self.current_gripper]
         msg.points = [point]
         self.publish_trajectory(msg)
+        return True

@@ -71,5 +71,6 @@ case "${1:-help}" in
     agent) shift; python3 "$PROJECT_ROOT/agent_workflow/run.py" --root "$ARM_RUN_ROOT" "$@" ;;
     audit) shift; python3 "$PROJECT_ROOT/agent_workflow/audit.py" --root "$ARM_RUN_ROOT" "$@" ;;
     feedback) shift; docker exec "$CONTROL_NAME" bash /experiment/src/sim_scene/run_feedback.sh "$@" ;;
-    *) echo 'Usage: bash scripts/arm.sh {init|check|up|sim|control|status|agent|audit|feedback|stop} [arguments]' ;;
+    interactive) shift; docker exec -it "$CONTROL_NAME" bash /experiment/src/sim_scene/run_python.sh main.py "$@" ;;
+    *) echo 'Usage: bash scripts/arm.sh {init|check|up|sim|control|status|agent|audit|feedback|interactive|stop} [arguments]' ;;
 esac

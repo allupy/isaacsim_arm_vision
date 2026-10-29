@@ -358,8 +358,10 @@ class SensorBackend(Node):
 
     def hold(self):
         if self.controller is not None:
-            self.controller.hold()
+            held = self.controller.hold()
             self.pump(.2)
+            return held
+        return True
 
 
 def main():
@@ -403,7 +405,8 @@ def main():
         if args.target_label!='red cube':parser.error('Perturbation fixture only supports the red cube')
         command['display']+=' | TEST: target shifted 35 mm after lock'
     output.mkdir(parents=True, exist_ok=False)
-    rclpy.init()
+    from rclpy.signals import SignalHandlerOptions
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     backend = SensorBackend(args, output)
     code = 1
     try:
@@ -471,11 +474,16 @@ def main():
         result['test_perturb'] = args.test_perturb
         (output/'result.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
         print('EXPERIMENT_RESULT '+json.dumps(result), flush=True)
-    except Exception as exc:
+    except (Exception, KeyboardInterrupt) as exc:
         import traceback
         traceback.print_exc()
-        backend.hold()
-        (output/'result.json').write_text(json.dumps({'success':False,'reason':'runtime_error:'+str(exc)},indent=2))
+        held = False
+        try:
+            held = bool(backend.hold())
+        finally:
+            reason = 'interrupted' if isinstance(exc, KeyboardInterrupt) else 'runtime_error:'+str(exc)
+            code = 130 if isinstance(exc, KeyboardInterrupt) else 1
+            (output/'result.json').write_text(json.dumps({'success':False,'reason':reason,'state_known':held},indent=2))
     finally:
         backend.writer.shutdown(wait=True)
         for future in backend.pending_writes:
