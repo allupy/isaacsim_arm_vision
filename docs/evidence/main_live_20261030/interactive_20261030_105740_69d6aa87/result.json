@@ -1,0 +1,457 @@
+{
+  "success": true,
+  "reason": "",
+  "attempts": 1,
+  "lift_verified": true,
+  "elapsed_s": 16.216286283000954,
+  "events": [
+    {
+      "state": "HOME",
+      "attempt": 0,
+      "wall_time": 1793357866.8531966,
+      "monotonic": 96839.07516699,
+      "goal": [
+        0.45,
+        -0.12,
+        0.5
+      ],
+      "time": 1793357866.8532014,
+      "sim_time": 264.591680466
+    },
+    {
+      "state": "ACQUIRE",
+      "attempt": 0,
+      "wall_time": 1793357868.3848882,
+      "monotonic": 96840.606858479,
+      "time": 1793357868.3848934,
+      "sim_time": 267.03334726
+    },
+    {
+      "state": "ACQUIRE",
+      "attempt": 0,
+      "wall_time": 1793357869.1209211,
+      "monotonic": 96841.342891413,
+      "locked_target": {
+        "position": [
+          0.5097800066860092,
+          0.1468436718324504,
+          0.05739985174810016
+        ],
+        "appearance": [
+          0.6,
+          0.19298245614035087,
+          0.20192307692307693
+        ],
+        "label": "cup",
+        "confidence": 0.6900522112846375,
+        "stamp_ns": 1793357868401217295,
+        "received_at": 96840.63040474,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.044055108968742485,
+          0.04647602504400136
+        ],
+        "source": "yolo_world_sam"
+      },
+      "time": 1793357869.1209273,
+      "sim_time": 267.10001393
+    },
+    {
+      "state": "APPROACH",
+      "attempt": 1,
+      "wall_time": 1793357869.121803,
+      "monotonic": 96841.34377389,
+      "goal": [
+        0.49719604434474507,
+        0.029919824818260957,
+        0.4373659814650994
+      ],
+      "time": 1793357869.1218078,
+      "sim_time": 267.10001393
+    },
+    {
+      "state": "REFINE",
+      "attempt": 1,
+      "wall_time": 1793357870.0756414,
+      "monotonic": 96842.297611802,
+      "time": 1793357870.0756462,
+      "sim_time": 269.566680725
+    },
+    {
+      "state": "APPROACH",
+      "attempt": 1,
+      "wall_time": 1793357870.2848902,
+      "monotonic": 96842.506860544,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.32179480919199355
+      ],
+      "time": 1793357870.2848954,
+      "sim_time": 269.633347395
+    },
+    {
+      "state": "DESCEND",
+      "attempt": 1,
+      "wall_time": 1793357871.238449,
+      "monotonic": 96843.460420084,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.24179480919199356
+      ],
+      "time": 1793357871.238454,
+      "sim_time": 271.166680809
+    },
+    {
+      "state": "CLOSE",
+      "attempt": 1,
+      "wall_time": 1793357872.3377645,
+      "monotonic": 96844.559735057,
+      "time": 1793357872.33777,
+      "sim_time": 272.700014222
+    },
+    {
+      "state": "LIFT",
+      "attempt": 1,
+      "wall_time": 1793357873.0705304,
+      "monotonic": 96845.29250069,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.5
+      ],
+      "time": 1793357873.0705352,
+      "sim_time": 273.766680944
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357874.900048,
+      "monotonic": 96847.122018872,
+      "expected": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.31499999999999995
+      ],
+      "time": 1793357874.900054,
+      "sim_time": 276.30001441
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357875.207623,
+      "monotonic": 96847.429592902,
+      "evidence": {
+        "position": [
+          0.5294647406608055,
+          0.13047954096987546,
+          0.3127350432237535
+        ],
+        "appearance": [
+          0.6608695652173913,
+          0.16393442622950818,
+          0.17592592592592593
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357874915742320,
+        "received_at": 96847.143175777,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.015618774027610915,
+          0.019717033817514523
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357875.2076283,
+      "sim_time": 276.383347747
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357876.1715415,
+      "monotonic": 96848.393511938,
+      "evidence": {
+        "position": [
+          0.535359074540571,
+          0.13133056392993303,
+          0.3173123562641643
+        ],
+        "appearance": [
+          0.6666666666666666,
+          0.1594779504722243,
+          0.1725705329153605
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357875900170802,
+        "received_at": 96848.127815537,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.021056919228658266,
+          0.021794949015889395
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357876.1715474,
+      "sim_time": 277.758347819
+    },
+    {
+      "state": "TRANSFER",
+      "attempt": 1,
+      "wall_time": 1793357876.1716387,
+      "monotonic": 96848.393608812,
+      "goal": [
+        0.49,
+        -0.3,
+        0.5
+      ],
+      "time": 1793357876.1716428,
+      "sim_time": 277.758347819
+    },
+    {
+      "state": "PLACE",
+      "attempt": 1,
+      "wall_time": 1793357877.6899335,
+      "monotonic": 96849.911904431,
+      "goal": [
+        0.49,
+        -0.3,
+        0.243
+      ],
+      "time": 1793357877.6899395,
+      "sim_time": 280.200014613
+    },
+    {
+      "state": "RELEASE",
+      "attempt": 1,
+      "wall_time": 1793357880.9654536,
+      "monotonic": 96853.187423876,
+      "time": 1793357880.9654582,
+      "sim_time": 284.666681513
+    },
+    {
+      "state": "RETREAT",
+      "attempt": 1,
+      "wall_time": 1793357881.4314225,
+      "monotonic": 96853.653393253,
+      "goal": [
+        0.49,
+        -0.3,
+        0.363
+      ],
+      "time": 1793357881.431427,
+      "sim_time": 285.333348214
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357882.417776,
+      "monotonic": 96854.6397465,
+      "expected": [
+        0.49,
+        -0.3,
+        0.058
+      ],
+      "time": 1793357882.4177814,
+      "sim_time": 286.666681617
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357882.7402546,
+      "monotonic": 96854.962225482,
+      "evidence": {
+        "position": [
+          0.4960602383357192,
+          -0.29948397212973676,
+          0.0605119812861874
+        ],
+        "appearance": [
+          0.6491228070175439,
+          0.1694915254237288,
+          0.18439716312056736
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357882434471932,
+        "received_at": 96854.662279613,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.02943015467253457,
+          0.024006418357399306
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357882.7402594,
+      "sim_time": 286.733348287
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357883.0693197,
+      "monotonic": 96855.291289908,
+      "evidence": {
+        "position": [
+          0.4963773334856081,
+          -0.299651620315766,
+          0.06036557826027973
+        ],
+        "appearance": [
+          0.6410709609845509,
+          0.17727153705158416,
+          0.18552855924978687
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357882753464654,
+        "received_at": 96854.984469022,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.030229919097816582,
+          0.0249039857842131
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357883.0693257,
+      "sim_time": 287.158348309
+    },
+    {
+      "state": "SUCCESS",
+      "attempt": 1,
+      "wall_time": 1793357883.069414,
+      "monotonic": 96855.291384616,
+      "time": 1793357883.0694184,
+      "sim_time": 287.158348309
+    }
+  ],
+  "config": {
+    "optimized_paths": true,
+    "target_label": "cup",
+    "acquire_camera": "observer",
+    "max_attempts": 2,
+    "observation_retries": 3,
+    "verification_frames": 2,
+    "association_distance": 0.075,
+    "appearance_distance": 0.35,
+    "ambiguity_margin": 0.01,
+    "max_observation_age": 8.0,
+    "approach_clearance": 0.18,
+    "viewpoint_offset_xy": [
+      -0.08,
+      0.0
+    ],
+    "observation_mode": "camera_centered",
+    "camera_clearance": 0.38,
+    "min_refinement_area_ratio": 0.55,
+    "tcp_offset": 0.185,
+    "lift_distance": 0.12,
+    "min_lift": 0.06,
+    "place_tolerance_xy": 0.06,
+    "place_tolerance_z": 0.035,
+    "stability_tolerance": 0.015,
+    "safe_z": 0.5,
+    "final_approach_clearance": 0.08,
+    "retreat_clearance": 0.12,
+    "home": [
+      0.45,
+      -0.12,
+      0.5
+    ],
+    "place_surface": [
+      0.49,
+      -0.3,
+      0.058
+    ],
+    "workspace_min": [
+      0.2,
+      -0.5,
+      0.016
+    ],
+    "workspace_max": [
+      0.8,
+      0.4,
+      0.15
+    ]
+  },
+  "perception": "yolo_sam",
+  "gripper": {
+    "id": "short_parallel",
+    "label": "SHORT PARALLEL (experimental)",
+    "finger_length_m": 0.055,
+    "open_width_m": 0.06,
+    "travel_per_finger_m": 0.02,
+    "tcp_offset_m": 0.185,
+    "standoff_m": 0.095,
+    "revision": "v3_gap60mm",
+    "command_scale": 0.02564102564102564,
+    "contact_static_friction": 0.8,
+    "contact_dynamic_friction": 0.65
+  },
+  "ground_truth_evaluation": {
+    "available": true,
+    "target": "cup",
+    "initial": [
+      0.5103265047073364,
+      0.14002367854118347,
+      0.03350643441081047
+    ],
+    "final": [
+      0.4885390102863312,
+      -0.2995661497116089,
+      0.0408899262547493
+    ],
+    "lifted": true,
+    "max_lift": 0.26111098006367683,
+    "placement_xy_error": 0.0015240462644497137,
+    "placement_height_error": 0.0073834918439388275,
+    "selected_visual_target": "cup",
+    "requested_target": "cup",
+    "target_selection_correct": true,
+    "destination_fixture": null,
+    "placement_xy_limit": 0.06,
+    "task_success": true
+  },
+  "command": {
+    "instruction": "Pick the cup",
+    "target": "cup",
+    "destination": "marked placement zone",
+    "skill": "pick_and_place",
+    "parser": "explicit demo vocabulary",
+    "display": "Pick the cup; place in the marked zone"
+  },
+  "detector_classes": [
+    "cup",
+    "banana",
+    "apple"
+  ],
+  "detector_confidence": 0.02,
+  "locked_sam_tracking": true,
+  "test_perturb": false
+}

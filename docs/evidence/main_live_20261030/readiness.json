@@ -1,0 +1,44 @@
+{
+  "topics": {
+    "/feedback/joint_states": {
+      "received": 1793357807.4845417,
+      "age_seconds": 0.0014490018425292739,
+      "joint_count": 8
+    },
+    "/feedback/camera_calibration": {
+      "received": 1793357807.4737222
+    },
+    "/rgb": {
+      "received": 1793357807.4809556,
+      "age_seconds": 0.014115635598632825,
+      "width": 640,
+      "height": 360,
+      "encoding": "bgr8"
+    },
+    "/depth": {
+      "received": 1793357807.4828832,
+      "age_seconds": 0.016041342462036146,
+      "width": 640,
+      "height": 360,
+      "encoding": "32FC1",
+      "finite_positive_fraction": 0.11946180555555555
+    },
+    "/observer_rgb": {
+      "received": 1793357807.4843297,
+      "age_seconds": 0.01748830481860353,
+      "width": 640,
+      "height": 360,
+      "encoding": "bgr8"
+    },
+    "/observer_depth": {
+      "received": 1793357807.4865305,
+      "age_seconds": 0.01968890830371095,
+      "width": 640,
+      "height": 360,
+      "encoding": "32FC1",
+      "finite_positive_fraction": 0.22985677083333333
+    }
+  },
+  "moveit_cartesian_ready": true,
+  "missing": []
+}

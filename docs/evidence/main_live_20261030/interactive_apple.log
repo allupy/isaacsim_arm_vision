@@ -1,0 +1,71 @@
+not found: "/ros2_ws/install/moveit_task_constructor_core/share/moveit_task_constructor_core/local_setup.bash"
+视觉机械臂交互台 · 与 feedback_runner.py 共用闭环执行流程
+
+d / grasp     完整闭环抓放
+o / s         只观察：保存同步图像、检测和定位结果，不创建运动控制器
+t apple       选目标；也支持 t 红色方块
+p fruit_zone  放置区：fruit_zone / cup_zone / plate / cup_stand
+p x y z       自定义放置表面世界坐标（米）
+c apple cup   自定义检测词；c auto 恢复按目标选择
+plan          显示下一次执行参数，不运行
+status        配置、相机状态与最近结果目录
+last          最近结果与独立评分
+v             相机快照（有桌面时显示，否则打印路径）
+h / help      帮助
+q / quit      退出
+运行中 Ctrl+C 请求闭环保持并结束任务，然后返回菜单。
+
+{
+  "target": "apple",
+  "classes": "auto",
+  "destination": "auto",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": null
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm> arm> arm> /usr/bin/python3 -u /experiment/src/feedback_runner.py --output /experiment/runs/PREVIEW_ONLY --config /experiment/src/config/default_config.yaml --perception yolo_sam --instruction 'Pick the apple' --det-confidence 0.02 --tcp-offset 0.185 --safe-z .5 --expected-gripper short_parallel --locked-sam-tracking --home 0.45 -0.12 0.5 --place-surface 0.35 -0.3 0.052 --startup-timeout 180.0 --sensor-timeout 25.0
+arm> 执行：/usr/bin/python3 -u /experiment/src/feedback_runner.py --output /experiment/runs/interactive_20261030_105223_75d8fe9a --config /experiment/src/config/default_config.yaml --perception yolo_sam --instruction 'Pick the apple' --det-confidence 0.02 --tcp-offset 0.185 --safe-z .5 --expected-gripper short_parallel --locked-sam-tracking --home 0.45 -0.12 0.5 --place-surface 0.35 -0.3 0.052 --startup-timeout 180.0 --sensor-timeout 25.0
+✅ 模型加载完成，检测类别: cup, banana, apple
+🔄 正在加载SAM模型 (vit_b): /ros2_ws/vision/sam_vit_b_01ec64.pth
+/usr/local/lib/python3.10/dist-packages/segment_anything/build_sam.py:105: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(f)
+✅ SAM模型加载完成
+Traceback (most recent call last):
+  File "/experiment/src/feedback_runner.py", line 414, in main
+    if not backend.wait_ready(args.startup_timeout):
+  File "/experiment/src/feedback_runner.py", line 150, in wait_ready
+    self.pump()
+  File "/experiment/src/feedback_runner.py", line 126, in pump
+    rclpy.spin_once(self, timeout_sec=.02)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 206, in spin_once
+    executor.spin_once(timeout_sec=timeout_sec)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 751, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 740, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 723, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 620, in _wait_for_ready_callbacks
+    wait_set.wait(timeout_nsec)
+KeyboardInterrupt
+返回码 130；结果目录：/experiment/runs/interactive_20261030_105223_75d8fe9a
+arm> {
+  "success": false,
+  "reason": "interrupted",
+  "state_known": true
+}
+arm> {
+  "target": "apple",
+  "classes": "auto",
+  "destination": "fruit_zone",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": "/experiment/runs/interactive_20261030_105223_75d8fe9a"
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm>

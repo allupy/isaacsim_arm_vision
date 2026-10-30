@@ -8,11 +8,16 @@
 
 ```bash
 source .env.example
-bash scripts/arm.sh up
+bash scripts/arm.sh sim
+# 等待 sim.log 出现 PLAYING 和持续增长的 SENSOR frame，确认本次启动的数据新鲜。
+bash scripts/arm.sh control
+# 等待 MoveIt 服务和关节状态就绪，再进入交互台。
 bash scripts/arm.sh interactive
 ```
 
-已在反馈控制容器内时：
+各终端使用相同的环境变量。`sim` 自动加载场景并执行 Play；`up` 当前不等待就绪，不能把容器启动成功当作可以开始抓取。具体检查和实测记录见 [2026-10-30 实际验证](MAIN_LIVE_VALIDATION_20261030.md)。
+
+已在反馈控制容器内且仿真、MoveIt 就绪时：
 
 ```bash
 bash /experiment/src/sim_scene/run_python.sh main.py
@@ -59,6 +64,8 @@ python3 main.py --dry-run --target "red cube"
 每条命令重新初始化视觉模型，因此相邻操作之间有加载延迟；这样的进程隔离可保留每轮参数和失败现场。旧 `main.py` 实现可以从 Git 提交 `a9bc00e` 查阅。
 
 ## 2026-10-29 验证范围
+
+**后续实测**：2026-10-30 已经通过本交互入口完成实时观察、苹果和杯子的闭环搬运。苹果正常落入目标区；杯子到区但侧倒，现有评分缺少姿态检查。详细数据、限制及录像见 [实际验证报告](MAIN_LIVE_VALIDATION_20261030.md)。下面保留前一次未完成场景加载时的历史记录。
 
 44 项本地检查通过（反馈策略 23、轨迹 5、agent 4、入口配置 5、交互命令/互斥 5、多用户容器 2），以及控制容器内 1 项中断回归（分别验证保持可用/不可用两种情况）。检查覆盖真实 feedback_runner 的中断清理、退出码与结果记录，不使用运动服务。
 

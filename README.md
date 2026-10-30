@@ -54,6 +54,8 @@ flowchart LR
 
 **入口说明**：`main.py` 现在是 `feedback_runner.py` 的交互控制台。观察和抓放均调用同一闭环执行器，包含同步 RGB-D、近距离校正、目标锁定、提起/放置验证及独立评分。使用 `bash scripts/arm.sh interactive` 进入菜单，详见 [交互演示与调试](docs/INTERACTIVE.md)。
 
+**2026-10-30 实测**：通过 `main.py` 交互菜单完成实时观察和苹果、杯子搬运，落点 XY 误差分别为 12.4 / 1.5 mm；**杯子释放后侧倒，直立放置未通过**，当前成功评分没有姿态检查。[验证报告](docs/MAIN_LIVE_VALIDATION_20261030.md) · [苹果录像](docs/media/main_apple_20261030.mp4) · [杯子录像（含侧倒）](docs/media/main_cup_20261030.mp4)
+
 | 模块 | 当前实现 |
 |---|---|
 | 视觉 | YOLO-World 开放词汇检测、SAM 分割、深度定位、视觉目标锁定 |
@@ -82,11 +84,13 @@ bash scripts/arm.sh check
 bash scripts/arm.sh init
 
 # 默认：短平行夹爪 + 苹果/香蕉/杯子场景
-bash scripts/arm.sh up
+bash scripts/arm.sh sim
+# 等待 sim.log 出现 PLAYING 和持续增长的 SENSOR frame，再启动 MoveIt2。
+bash scripts/arm.sh control
 bash scripts/arm.sh status
 ```
 
-先在宿主机查看 `.runtime/<user>/sim/sim.log`，等待场景和相机就绪，再执行：
+先在宿主机查看 `.runtime/<user>/sim/sim.log`（设置了 `ARM_RUN_ROOT` 时使用该目录），确认本次启动的场景、相机和 MoveIt 就绪，再执行；`status` 只显示容器状态，不能替代就绪检查：
 
 ```bash
 # 先检查计划，不驱动仿真

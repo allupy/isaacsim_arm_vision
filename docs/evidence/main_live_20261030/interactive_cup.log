@@ -1,0 +1,605 @@
+not found: "/ros2_ws/install/moveit_task_constructor_core/share/moveit_task_constructor_core/local_setup.bash"
+视觉机械臂交互台 · 与 feedback_runner.py 共用闭环执行流程
+
+d / grasp     完整闭环抓放
+o / s         只观察：保存同步图像、检测和定位结果，不创建运动控制器
+t apple       选目标；也支持 t 红色方块
+p fruit_zone  放置区：fruit_zone / cup_zone / plate / cup_stand
+p x y z       自定义放置表面世界坐标（米）
+c apple cup   自定义检测词；c auto 恢复按目标选择
+plan          显示下一次执行参数，不运行
+status        配置、相机状态与最近结果目录
+last          最近结果与独立评分
+v             相机快照（有桌面时显示，否则打印路径）
+h / help      帮助
+q / quit      退出
+运行中 Ctrl+C 请求闭环保持并结束任务，然后返回菜单。
+
+{
+  "target": "apple",
+  "classes": "auto",
+  "destination": "auto",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": null
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm> arm> arm> /usr/bin/python3 -u /experiment/src/feedback_runner.py --output /experiment/runs/PREVIEW_ONLY --config /experiment/src/config/default_config.yaml --perception yolo_sam --instruction 'Pick the cup' --det-confidence 0.02 --tcp-offset 0.185 --safe-z .5 --expected-gripper short_parallel --locked-sam-tracking --home 0.45 -0.12 0.5 --place-surface 0.49 -0.3 0.058 --startup-timeout 180.0 --sensor-timeout 25.0
+arm> 执行：/usr/bin/python3 -u /experiment/src/feedback_runner.py --output /experiment/runs/interactive_20261030_105740_69d6aa87 --config /experiment/src/config/default_config.yaml --perception yolo_sam --instruction 'Pick the cup' --det-confidence 0.02 --tcp-offset 0.185 --safe-z .5 --expected-gripper short_parallel --locked-sam-tracking --home 0.45 -0.12 0.5 --place-surface 0.49 -0.3 0.058 --startup-timeout 180.0 --sensor-timeout 25.0
+✅ 模型加载完成，检测类别: cup, banana, apple
+🔄 正在加载SAM模型 (vit_b): /ros2_ws/vision/sam_vit_b_01ec64.pth
+/usr/local/lib/python3.10/dist-packages/segment_anything/build_sam.py:105: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(f)
+✅ SAM模型加载完成
+[INFO] [1793357866.630131483] [feedback_grasp_experiment]: 等待关节状态消息...
+[INFO] [1793357866.631255061] [feedback_grasp_experiment]: 收到关节状态: [-3.6111626625061035, -1.4955401420593262, -1.8353842496871948, 4.9012017250061035, 1.5707956552505493, -2.0403711795806885]
+[INFO] [1793357866.631638854] [feedback_grasp_experiment]: 机械臂控制器已初始化
+warning: Using load_yaml() directly is deprecated. Use xacro.load_yaml() instead.
+[INFO] [1793357866.751156131] [moveit.py.cpp_initializer]: Initialize rclcpp
+[INFO] [1793357866.751176735] [moveit.py.cpp_initializer]: Initialize node parameters
+[INFO] [1793357866.751190494] [moveit.py.cpp_initializer]: Initialize node and executor
+[INFO] [1793357866.762283799] [moveit.py.cpp_initializer]: Spin separate thread
+[INFO] [1793357866.766022263] [moveit_rdf_loader.rdf_loader]: Loaded robot model in 0.0036536 seconds
+[INFO] [1793357866.766054670] [moveit_robot_model.robot_model]: Loading robot model 'ur5'...
+[INFO] [1793357866.806752494] [moveit.ros_planning_interface.moveit_cpp]: Listening to 'joint_states' for joint states
+[INFO] [1793357866.807782202] [moveit_ros.current_state_monitor]: Listening to joint states on topic 'joint_states'
+[INFO] [1793357866.811756319] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects
+[INFO] [1793357866.812402585] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'
+[INFO] [1793357866.812477597] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting planning scene monitor
+[INFO] [1793357866.812686500] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/planning_scene'
+[INFO] [1793357866.812697954] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.
+[INFO] [1793357866.812954631] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'collision_object'
+[INFO] [1793357866.813205021] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry
+[WARN] [1793357866.814749269] [moveit.ros.occupancy_map_monitor.middleware_handle]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead
+[ERROR] [1793357866.814766660] [moveit.ros.occupancy_map_monitor.middleware_handle]: No 3D sensor plugin(s) defined for octomap updates
+[INFO] [1793357866.815974750] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'ompl'
+[INFO] [1793357866.827439135] [moveit.ros_planning.planning_pipeline]: Using planning interface 'OMPL'
+[INFO] [1793357866.835177279] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.path_tolerance' was not set. Using default value: 0.100000
+[INFO] [1793357866.835190549] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.resample_dt' was not set. Using default value: 0.100000
+[INFO] [1793357866.835196905] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.min_angle_change' was not set. Using default value: 0.001000
+[INFO] [1793357866.835208709] [moveit_ros.fix_workspace_bounds]: Param 'ompl.default_workspace_bounds' was not set. Using default value: 10.000000
+[INFO] [1793357866.835221071] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_bounds_error' was set to 0.100000
+[INFO] [1793357866.835226868] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000
+[INFO] [1793357866.835237345] [moveit_ros.fix_start_state_collision]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000
+[INFO] [1793357866.835242513] [moveit_ros.fix_start_state_collision]: Param 'ompl.jiggle_fraction' was not set. Using default value: 0.020000
+[INFO] [1793357866.835253549] [moveit_ros.fix_start_state_collision]: Param 'ompl.max_sampling_attempts' was not set. Using default value: 100
+[INFO] [1793357866.835263676] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Add Time Optimal Parameterization'
+[INFO] [1793357866.835289379] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Workspace Bounds'
+[INFO] [1793357866.835296084] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Bounds'
+[INFO] [1793357866.835300833] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State In Collision'
+[INFO] [1793357866.835305443] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Path Constraints'
+[ERROR] [1793357866.850058986] [moveit.plugins.moveit_simple_controller_manager]: No action namespace specified for controller `ur5_arm_controller` through parameter `moveit_simple_controller_manager.ur5_arm_controller.action_ns`
+[INFO] [1793357866.850138817] [moveit.plugins.moveit_simple_controller_manager]: Returned 0 controllers in list
+[INFO] [1793357866.850149364] [moveit.plugins.moveit_simple_controller_manager]: Returned 0 controllers in list
+[INFO] [1793357866.850502564] [moveit_ros.trajectory_execution_manager]: Trajectory execution is managing controllers
+[INFO] [1793357866.851541911] [feedback_grasp_experiment]: ✅ MoveItPy 控制器初始化成功(OMPL 规划已启用)
+{"state": "HOME", "attempt": 0, "wall_time": 1793357866.8531966, "monotonic": 96839.07516699, "goal": [0.45, -0.12, 0.5], "time": 1793357866.8532014, "sim_time": 264.591680466}
+[WARN] [1793357866.858262150] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'ur5_arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.
+[INFO] [1793357866.858572886] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'ur5_arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.
+[WARN] [1793357866.866929916] [moveit_trajectory_processing.time_optimal_trajectory_generation]: Joint acceleration limits are not defined. Using the default 1 rad/s^2. You can define acceleration limits in the URDF or joint_limits.yaml.
+{"kind": "motion", "goal_world": [0.45, -0.12, 0.5], "goal_planning": [0.45000000349096597, -0.12, 0.5], "linear": false, "wall_s": 1.2083332769980188, "result": {"success": true, "error": 0.00027006491054892834, "raw_error": 0.00027006491054892834, "samples": 8, "planning_wall_s": 0.013753309001913294, "execution_wall_s": 1.1701654800126562, "trajectory_sim_s": 1.334973342, "sim_elapsed_s": 1.5583334150000496}, "time": 1793357868.061677, "sim_time": 266.566680569}
+{"kind": "gripper", "closed": false, "success": true, "time": 1793357868.3847156, "sim_time": 267.03334726}
+{"state": "ACQUIRE", "attempt": 0, "wall_time": 1793357868.3848882, "monotonic": 96840.606858479, "time": 1793357868.3848934, "sim_time": 267.03334726}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357868401217295, "perception": "yolo_sam", "wait_wall_s": 0.05080458500015084, "processing_wall_s": 0.6846412409940967, "candidates": [{"position": [0.5097800066860092, 0.1468436718324504, 0.05739985174810016], "appearance": [0.6, 0.19298245614035087, 0.20192307692307693], "label": "cup", "confidence": 0.6900522112846375, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.044055108968742485, 0.04647602504400136], "source": "yolo_world_sam"}, {"position": [0.38829228851208764, -0.13581345168081072, 0.6067698924052233], "appearance": [0.33225806451612905, 0.3333333333333333, 0.33540372670807456], "label": "cup", "confidence": 0.10158714652061462, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.5012901251557054, 0.17181947514248805], "source": "yolo_world_sam"}, {"position": [0.6380449273713351, -0.011689656649434221, 0.03023647530433271], "appearance": [0.5166666666666667, 0.41735537190082644, 0.06569343065693431], "label": "banana", "confidence": 0.10135798156261444, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [0.999567204669545, 0.029417738681144424, 0.0, 0.0], "extent_xy": [0.09857675539799271, 0.021766683423649593], "source": "yolo_world_sam"}, {"position": [0.0034505178990489327, -0.028620320471187233, 0.15504657920952736], "appearance": [0.329608938547486, 0.3333333333333333, 0.34], "label": "cup", "confidence": 0.05817215517163277, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.07524653252574158, 0.08095691510532095], "source": "yolo_world_sam"}], "time": 1793357869.1205742, "sim_time": 267.10001393}
+{"state": "ACQUIRE", "attempt": 0, "wall_time": 1793357869.1209211, "monotonic": 96841.342891413, "locked_target": {"position": [0.5097800066860092, 0.1468436718324504, 0.05739985174810016], "appearance": [0.6, 0.19298245614035087, 0.20192307692307693], "label": "cup", "confidence": 0.6900522112846375, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.044055108968742485, 0.04647602504400136], "source": "yolo_world_sam"}, "time": 1793357869.1209273, "sim_time": 267.10001393}
+{"kind": "camera_view_goal", "target_world": [0.5097800066860092, 0.1468436718324504, 0.05739985174810016], "camera_clearance": 0.38, "world_from_camera": [[1.0, 0.0, 0.0, 0.5097800066860092], [0.0, -1.0, 0.0, 0.1468436718324504], [0.0, 0.0, -1.0, 0.43739985174810014], [0.0, 0.0, 0.0, 1.0]], "world_from_ee": [[0.9999996987481523, 0.000769941202458753, 9.84588702099236e-05, 0.49719604434474507], [0.0007700580183999583, -0.999998993118506, -0.001191961669909723, 0.029919824818260957], [9.754103067209424e-05, 0.0011920371298715553, -0.9999992847663584, 0.4373659814650994], [0.0, 0.0, 0.0, 1.0]], "ee_from_camera": [[0.999999699, -0.000770058018, -9.75410307e-05, 0.012674], [0.000769941203, 0.999998993, -0.00119203713, -0.116914], [9.84588702e-05, 0.00119196167, 0.999999285, -0.000172], [0.0, 0.0, 0.0, 1.0]], "time": 1793357869.1215918, "sim_time": 267.10001393}
+{"state": "APPROACH", "attempt": 1, "wall_time": 1793357869.121803, "monotonic": 96841.34377389, "goal": [0.49719604434474507, 0.029919824818260957, 0.4373659814650994], "time": 1793357869.1218078, "sim_time": 267.10001393}
+[WARN] [1793357869.127950864] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'ur5_arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.
+[INFO] [1793357869.128238062] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'ur5_arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.
+{"kind": "motion", "goal_world": [0.49719604434474507, 0.029919824818260957, 0.4373659814650994], "goal_planning": [0.49719604783571103, 0.029919824818260957, 0.4373659814650994], "linear": false, "wall_s": 0.9535365359915886, "result": {"success": true, "error": 0.0003025336107451704, "raw_error": 0.0003025336107451704, "samples": 9, "planning_wall_s": 0.03193507200921886, "execution_wall_s": 0.9188508719962556, "trajectory_sim_s": 1.1049967920000001, "sim_elapsed_s": 1.3500000700000214}, "time": 1793357870.0754533, "sim_time": 269.566680725}
+{"state": "REFINE", "attempt": 1, "wall_time": 1793357870.0756414, "monotonic": 96842.297611802, "time": 1793357870.0756462, "sim_time": 269.566680725}
+{"kind": "observation", "camera": "wrist", "stamp_ns": 1793357870091044139, "perception": "yolo_sam", "wait_wall_s": 0.051015235992963426, "processing_wall_s": 0.15778566600056365, "candidates": [{"position": [0.6332157198517446, -0.0013346678146127222, 0.03125863856056421], "appearance": [0.4949748743718593, 0.4308755760368664, 0.07160493827160494], "label": "banana", "confidence": 0.7054130434989929, "stamp_ns": 1793357870091044139, "received_at": 96842.315515237, "quat": [0.9992967389115192, 0.037497034560122426, 0.0, 0.0], "extent_xy": [0.10090827911148292, 0.029891548571203366], "source": "yolo_world_sam"}, {"position": [0.510842680519897, 0.13961896808505475, 0.05679480919199357], "appearance": [0.5, 0.25, 0.25], "label": "cup", "confidence": 0.024465162307024002, "stamp_ns": 1793357870091044139, "received_at": 96842.315515237, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.04170933498492446, 0.04071649410474289], "source": "yolo_world_sam"}], "time": 1793357870.2846158, "sim_time": 269.633347395}
+{"state": "APPROACH", "attempt": 1, "wall_time": 1793357870.2848902, "monotonic": 96842.506860544, "goal": [0.510842680519897, 0.13961896808505475, 0.32179480919199355], "time": 1793357870.2848954, "sim_time": 269.633347395}
+[WARN] [1793357870.288107217] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'ur5_arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.
+[INFO] [1793357870.288314933] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'ur5_arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.
+{"kind": "motion", "goal_world": [0.510842680519897, 0.13961896808505475, 0.32179480919199355], "goal_planning": [0.510842684010863, 0.13961896808505475, 0.32179480919199355], "linear": false, "wall_s": 0.9533109659969341, "result": {"success": true, "error": 0.00033936026022685084, "raw_error": 0.00033936026022685084, "samples": 8, "planning_wall_s": 0.025872272992273793, "execution_wall_s": 0.9227168270008406, "trajectory_sim_s": 1.080907991, "sim_elapsed_s": 1.283333400999993}, "time": 1793357871.2382832, "sim_time": 271.166680809}
+{"state": "DESCEND", "attempt": 1, "wall_time": 1793357871.238449, "monotonic": 96843.460420084, "goal": [0.510842680519897, 0.13961896808505475, 0.24179480919199356], "time": 1793357871.238454, "sim_time": 271.166680809}
+{"kind": "motion", "goal_world": [0.510842680519897, 0.13961896808505475, 0.24179480919199356], "goal_planning": [0.510842684010863, 0.13961896808505475, 0.24179480919199356], "linear": true, "wall_s": 1.0990639529918553, "result": {"success": true, "error": 0.00034625899851126185, "raw_error": 0.00034625899851126185, "samples": 9, "planning_wall_s": 0.00274437599000521, "execution_wall_s": 1.0741487499908544, "trajectory_sim_s": 1.253247275, "sim_elapsed_s": 1.500000077999971}, "time": 1793357872.3376, "sim_time": 272.700014222}
+{"state": "CLOSE", "attempt": 1, "wall_time": 1793357872.3377645, "monotonic": 96844.559735057, "time": 1793357872.33777, "sim_time": 272.700014222}
+{"kind": "gripper", "closed": true, "success": true, "time": 1793357873.0703747, "sim_time": 273.766680944}
+{"state": "LIFT", "attempt": 1, "wall_time": 1793357873.0705304, "monotonic": 96845.29250069, "goal": [0.510842680519897, 0.13961896808505475, 0.5], "time": 1793357873.0705352, "sim_time": 273.766680944}
+{"kind": "motion", "goal_world": [0.510842680519897, 0.13961896808505475, 0.5], "goal_planning": [0.510842684010863, 0.13961896808505475, 0.5], "linear": true, "wall_s": 1.829214501005481, "result": {"success": true, "error": 0.0003735407749685393, "raw_error": 0.0003735407749685393, "samples": 8, "planning_wall_s": 0.004822860995773226, "execution_wall_s": 1.8056497289944673, "trajectory_sim_s": 2.270714197, "sim_elapsed_s": 2.4916667969999935}, "time": 1793357874.8998265, "sim_time": 276.30001441}
+{"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357874.900048, "monotonic": 96847.122018872, "expected": [0.510842680519897, 0.13961896808505475, 0.31499999999999995], "time": 1793357874.900054, "sim_time": 276.30001441}
+{"kind": "locked_sam_tracking", "label": "cup", "expected": [0.510842680519897, 0.13961896808505475, 0.31499999999999995], "box": [350.31713216289967, 110.94575345781274, 378.20026361104294, 142.8423997678013], "source": "prior visual lock and commanded motion; RGB segmentation and depth verification", "time": 1793357875.1887865, "sim_time": 276.383347747}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357874915742320, "perception": "yolo_sam", "wait_wall_s": 0.05092996200255584, "processing_wall_s": 0.25613008700020146, "candidates": [{"position": [0.6367027004393413, -0.011772048115866518, 0.030209506200656655], "appearance": [0.5179856115107914, 0.4177215189873418, 0.06439393939393939], "label": "banana", "confidence": 0.18124693632125854, "stamp_ns": 1793357874915742320, "received_at": 96847.143175777, "quat": [0.9994918746461046, 0.031874637510338914, 0.0, 0.0], "extent_xy": [0.09905472771747481, 0.021880436444332352], "source": "yolo_world_sam"}, {"position": [0.036692363728788924, 0.003471683188716157, 0.15266549458704468], "appearance": [0.33088235294117646, 0.3333333333333333, 0.337815239989153], "label": "cup", "confidence": 0.10279015451669693, "stamp_ns": 1793357874915742320, "received_at": 96847.143175777, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.05700907866082204, 0.051844678142252014], "source": "yolo_world_sam"}, {"position": [0.5294647406608055, 0.13047954096987546, 0.3127350432237535], "appearance": [0.6608695652173913, 0.16393442622950818, 0.17592592592592593], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357874915742320, "received_at": 96847.143175777, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.015618774027610915, 0.019717033817514523], "source": "sam_appearance_depth_tracking_from_visual_lock"}], "time": 1793357875.2073214, "sim_time": 276.383347747}
+{"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357875.207623, "monotonic": 96847.429592902, "evidence": {"position": [0.5294647406608055, 0.13047954096987546, 0.3127350432237535], "appearance": [0.6608695652173913, 0.16393442622950818, 0.17592592592592593], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357874915742320, "received_at": 96847.143175777, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.015618774027610915, 0.019717033817514523], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357875.2076283, "sim_time": 276.383347747}
+{"kind": "locked_sam_tracking", "label": "cup", "expected": [0.510842680519897, 0.13961896808505475, 0.31499999999999995], "box": [350.31713216289967, 110.94575345781274, 378.20026361104294, 142.8423997678013], "source": "prior visual lock and commanded motion; RGB segmentation and depth verification", "time": 1793357876.152708, "sim_time": 277.758347819}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357875900170802, "perception": "yolo_sam", "wait_wall_s": 0.7235635389952222, "processing_wall_s": 0.23983788400073536, "candidates": [{"position": [0.6374928637058561, -0.011804238510424558, 0.030188080591258215], "appearance": [0.5169811320754717, 0.41770596833887974, 0.06580489047376464], "label": "banana", "confidence": 0.17629696428775787, "stamp_ns": 1793357875900170802, "received_at": 96848.127815537, "quat": [0.9995502822839483, 0.02998721704458953, 0.0, 0.0], "extent_xy": [0.09926777796487607, 0.021801335009060452], "source": "yolo_world_sam"}, {"position": [0.03669232361175512, 0.003949243553295068, 0.1526760765804716], "appearance": [0.3301358728990308, 0.3333333333333333, 0.33893596986817326], "label": "cup", "confidence": 0.12610077857971191, "stamp_ns": 1793357875900170802, "received_at": 96848.127815537, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.055583205865459145, 0.05035069949917945], "source": "yolo_world_sam"}, {"position": [0.535359074540571, 0.13133056392993303, 0.3173123562641643], "appearance": [0.6666666666666666, 0.1594779504722243, 0.1725705329153605], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357875900170802, "received_at": 96848.127815537, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.021056919228658266, 0.021794949015889395], "source": "sam_appearance_depth_tracking_from_visual_lock"}], "time": 1793357876.1712432, "sim_time": 277.758347819}
+{"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357876.1715415, "monotonic": 96848.393511938, "evidence": {"position": [0.535359074540571, 0.13133056392993303, 0.3173123562641643], "appearance": [0.6666666666666666, 0.1594779504722243, 0.1725705329153605], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357875900170802, "received_at": 96848.127815537, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.021056919228658266, 0.021794949015889395], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357876.1715474, "sim_time": 277.758347819}
+{"state": "TRANSFER", "attempt": 1, "wall_time": 1793357876.1716387, "monotonic": 96848.393608812, "goal": [0.49, -0.3, 0.5], "time": 1793357876.1716428, "sim_time": 277.758347819}
+[WARN] [1793357876.176094097] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'ur5_arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.
+[INFO] [1793357876.176350983] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'ur5_arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.
+{"kind": "motion", "goal_world": [0.49, -0.3, 0.5], "goal_planning": [0.49000000349096595, -0.3, 0.5], "linear": false, "wall_s": 1.518030840990832, "result": {"success": true, "error": 0.0004430258747083471, "raw_error": 0.0004430258747083471, "samples": 9, "planning_wall_s": 0.025405998996575363, "execution_wall_s": 1.4859234589966945, "trajectory_sim_s": 1.824971257, "sim_elapsed_s": 2.058333441000002}, "time": 1793357877.6897414, "sim_time": 280.200014613}
+{"state": "PLACE", "attempt": 1, "wall_time": 1793357877.6899335, "monotonic": 96849.911904431, "goal": [0.49, -0.3, 0.243], "time": 1793357877.6899395, "sim_time": 280.200014613}
+{"kind": "motion", "goal_world": [0.49, -0.3, 0.243], "goal_planning": [0.49000000349096595, -0.3, 0.243], "linear": true, "wall_s": 3.2752624200074933, "result": {"success": true, "error": 0.0004167045272263081, "raw_error": 0.00041670452722630813, "samples": 9, "planning_wall_s": 0.004388222994748503, "execution_wall_s": 3.2519566269911593, "trajectory_sim_s": 4.188631723, "sim_elapsed_s": 4.425000231000013}, "time": 1793357880.9652777, "sim_time": 284.666681513}
+{"state": "RELEASE", "attempt": 1, "wall_time": 1793357880.9654536, "monotonic": 96853.187423876, "time": 1793357880.9654582, "sim_time": 284.666681513}
+{"kind": "gripper", "closed": false, "success": true, "time": 1793357881.4312558, "sim_time": 285.333348214}
+{"state": "RETREAT", "attempt": 1, "wall_time": 1793357881.4314225, "monotonic": 96853.653393253, "goal": [0.49, -0.3, 0.363], "time": 1793357881.431427, "sim_time": 285.333348214}
+{"kind": "motion", "goal_world": [0.49, -0.3, 0.363], "goal_planning": [0.49000000349096595, -0.3, 0.363], "linear": true, "wall_s": 0.9860936379991472, "result": {"success": true, "error": 0.0004064644541883489, "raw_error": 0.00040646445418834887, "samples": 8, "planning_wall_s": 0.0028508890100056306, "execution_wall_s": 0.9661562749970471, "trajectory_sim_s": 1.093795805, "sim_elapsed_s": 1.3000000679999744}, "time": 1793357882.417594, "sim_time": 286.666681617}
+{"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357882.417776, "monotonic": 96854.6397465, "expected": [0.49, -0.3, 0.058], "time": 1793357882.4177814, "sim_time": 286.666681617}
+{"kind": "locked_sam_tracking", "label": "cup", "expected": [0.49, -0.3, 0.058], "box": [249.6452657172352, 247.673566066622, 280.8574184780938, 285.2567449494224], "source": "prior visual lock and commanded motion; RGB segmentation and depth verification", "time": 1793357882.7152994, "sim_time": 286.733348287}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357882434471932, "perception": "yolo_sam", "wait_wall_s": 0.05030828999588266, "processing_wall_s": 0.27156255999580026, "candidates": [{"position": [0.6372921025311583, -0.01173981380112843, 0.030232893859748478], "appearance": [0.5178571428571429, 0.4173027989821883, 0.06521739130434782], "label": "banana", "confidence": 0.20527614653110504, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [0.9995589634687374, 0.029696440010603675, 0.0, 0.0], "extent_xy": [0.09849682937718074, 0.021651214121518023], "source": "yolo_world_sam"}, {"position": [-0.0026909349722066267, -0.023170208707955275, 0.15419842970410524], "appearance": [0.32972972972972975, 0.3333333333333333, 0.3387096774193548], "label": "cup", "confidence": 0.10793580859899521, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.07614903434053788, 0.08994433006315572], "source": "yolo_world_sam"}, {"position": [0.08208277687206822, -0.12745140617970951, 0.5357552005577351], "appearance": [0.3323076923076923, 0.3333333333333333, 0.3353658536585366], "label": "cup", "confidence": 0.022500377148389816, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.5121772994636284, 0.2617681602308041], "source": "yolo_world_sam"}, {"position": [0.4960602383357192, -0.29948397212973676, 0.0605119812861874], "appearance": [0.6491228070175439, 0.1694915254237288, 0.18439716312056736], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.02943015467253457, 0.024006418357399306], "source": "sam_appearance_depth_tracking_from_visual_lock"}], "time": 1793357882.739888, "sim_time": 286.733348287}
+{"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357882.7402546, "monotonic": 96854.962225482, "evidence": {"position": [0.4960602383357192, -0.29948397212973676, 0.0605119812861874], "appearance": [0.6491228070175439, 0.1694915254237288, 0.18439716312056736], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.02943015467253457, 0.024006418357399306], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357882.7402594, "sim_time": 286.733348287}
+{"kind": "locked_sam_tracking", "label": "cup", "expected": [0.49, -0.3, 0.058], "box": [249.6452657172352, 247.673566066622, 280.8574184780938, 285.2567449494224], "source": "prior visual lock and commanded motion; RGB segmentation and depth verification", "time": 1793357883.0443833, "sim_time": 287.158348309}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357882753464654, "perception": "yolo_sam", "wait_wall_s": 0.05645616199763026, "processing_wall_s": 0.271997409989126, "candidates": [{"position": [0.6372934423725469, -0.011741330629076563, 0.030234778795943162], "appearance": [0.5168918918918919, 0.41700404858299595, 0.06511627906976744], "label": "banana", "confidence": 0.19542564451694489, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [0.9995591885399234, 0.029688863322966674, 0.0, 0.0], "extent_xy": [0.09849749036612954, 0.021651006844789975], "source": "yolo_world_sam"}, {"position": [-0.003588373770082365, -0.023240241040302978, 0.15423915950658984], "appearance": [0.32978723404255317, 0.3333333333333333, 0.33884297520661155], "label": "cup", "confidence": 0.11622250080108643, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.07603988416376921, 0.08967677580985171], "source": "yolo_world_sam"}, {"position": [0.08224998565930963, -0.1274513319215107, 0.5355080937897774], "appearance": [0.3323076923076923, 0.3333333333333333, 0.33534743202416917], "label": "cup", "confidence": 0.02517048642039299, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.5133100896877487, 0.2634085675911144], "source": "yolo_world_sam"}, {"position": [0.4963773334856081, -0.299651620315766, 0.06036557826027973], "appearance": [0.6410709609845509, 0.17727153705158416, 0.18552855924978687], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030229919097816582, 0.0249039857842131], "source": "sam_appearance_depth_tracking_from_visual_lock"}], "time": 1793357883.0689602, "sim_time": 287.158348309}
+{"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357883.0693197, "monotonic": 96855.291289908, "evidence": {"position": [0.4963773334856081, -0.299651620315766, 0.06036557826027973], "appearance": [0.6410709609845509, 0.17727153705158416, 0.18552855924978687], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030229919097816582, 0.0249039857842131], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357883.0693257, "sim_time": 287.158348309}
+{"state": "SUCCESS", "attempt": 1, "wall_time": 1793357883.069414, "monotonic": 96855.291384616, "time": 1793357883.0694184, "sim_time": 287.158348309}
+EXPERIMENT_RESULT {"success": true, "reason": "", "attempts": 1, "lift_verified": true, "elapsed_s": 16.216286283000954, "events": [{"state": "HOME", "attempt": 0, "wall_time": 1793357866.8531966, "monotonic": 96839.07516699, "goal": [0.45, -0.12, 0.5], "time": 1793357866.8532014, "sim_time": 264.591680466}, {"state": "ACQUIRE", "attempt": 0, "wall_time": 1793357868.3848882, "monotonic": 96840.606858479, "time": 1793357868.3848934, "sim_time": 267.03334726}, {"state": "ACQUIRE", "attempt": 0, "wall_time": 1793357869.1209211, "monotonic": 96841.342891413, "locked_target": {"position": [0.5097800066860092, 0.1468436718324504, 0.05739985174810016], "appearance": [0.6, 0.19298245614035087, 0.20192307692307693], "label": "cup", "confidence": 0.6900522112846375, "stamp_ns": 1793357868401217295, "received_at": 96840.63040474, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.044055108968742485, 0.04647602504400136], "source": "yolo_world_sam"}, "time": 1793357869.1209273, "sim_time": 267.10001393}, {"state": "APPROACH", "attempt": 1, "wall_time": 1793357869.121803, "monotonic": 96841.34377389, "goal": [0.49719604434474507, 0.029919824818260957, 0.4373659814650994], "time": 1793357869.1218078, "sim_time": 267.10001393}, {"state": "REFINE", "attempt": 1, "wall_time": 1793357870.0756414, "monotonic": 96842.297611802, "time": 1793357870.0756462, "sim_time": 269.566680725}, {"state": "APPROACH", "attempt": 1, "wall_time": 1793357870.2848902, "monotonic": 96842.506860544, "goal": [0.510842680519897, 0.13961896808505475, 0.32179480919199355], "time": 1793357870.2848954, "sim_time": 269.633347395}, {"state": "DESCEND", "attempt": 1, "wall_time": 1793357871.238449, "monotonic": 96843.460420084, "goal": [0.510842680519897, 0.13961896808505475, 0.24179480919199356], "time": 1793357871.238454, "sim_time": 271.166680809}, {"state": "CLOSE", "attempt": 1, "wall_time": 1793357872.3377645, "monotonic": 96844.559735057, "time": 1793357872.33777, "sim_time": 272.700014222}, {"state": "LIFT", "attempt": 1, "wall_time": 1793357873.0705304, "monotonic": 96845.29250069, "goal": [0.510842680519897, 0.13961896808505475, 0.5], "time": 1793357873.0705352, "sim_time": 273.766680944}, {"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357874.900048, "monotonic": 96847.122018872, "expected": [0.510842680519897, 0.13961896808505475, 0.31499999999999995], "time": 1793357874.900054, "sim_time": 276.30001441}, {"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357875.207623, "monotonic": 96847.429592902, "evidence": {"position": [0.5294647406608055, 0.13047954096987546, 0.3127350432237535], "appearance": [0.6608695652173913, 0.16393442622950818, 0.17592592592592593], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357874915742320, "received_at": 96847.143175777, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.015618774027610915, 0.019717033817514523], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357875.2076283, "sim_time": 276.383347747}, {"state": "VERIFY_LIFT", "attempt": 1, "wall_time": 1793357876.1715415, "monotonic": 96848.393511938, "evidence": {"position": [0.535359074540571, 0.13133056392993303, 0.3173123562641643], "appearance": [0.6666666666666666, 0.1594779504722243, 0.1725705329153605], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357875900170802, "received_at": 96848.127815537, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.021056919228658266, 0.021794949015889395], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357876.1715474, "sim_time": 277.758347819}, {"state": "TRANSFER", "attempt": 1, "wall_time": 1793357876.1716387, "monotonic": 96848.393608812, "goal": [0.49, -0.3, 0.5], "time": 1793357876.1716428, "sim_time": 277.758347819}, {"state": "PLACE", "attempt": 1, "wall_time": 1793357877.6899335, "monotonic": 96849.911904431, "goal": [0.49, -0.3, 0.243], "time": 1793357877.6899395, "sim_time": 280.200014613}, {"state": "RELEASE", "attempt": 1, "wall_time": 1793357880.9654536, "monotonic": 96853.187423876, "time": 1793357880.9654582, "sim_time": 284.666681513}, {"state": "RETREAT", "attempt": 1, "wall_time": 1793357881.4314225, "monotonic": 96853.653393253, "goal": [0.49, -0.3, 0.363], "time": 1793357881.431427, "sim_time": 285.333348214}, {"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357882.417776, "monotonic": 96854.6397465, "expected": [0.49, -0.3, 0.058], "time": 1793357882.4177814, "sim_time": 286.666681617}, {"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357882.7402546, "monotonic": 96854.962225482, "evidence": {"position": [0.4960602383357192, -0.29948397212973676, 0.0605119812861874], "appearance": [0.6491228070175439, 0.1694915254237288, 0.18439716312056736], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882434471932, "received_at": 96854.662279613, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.02943015467253457, 0.024006418357399306], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357882.7402594, "sim_time": 286.733348287}, {"state": "VERIFY_PLACE", "attempt": 1, "wall_time": 1793357883.0693197, "monotonic": 96855.291289908, "evidence": {"position": [0.4963773334856081, -0.299651620315766, 0.06036557826027973], "appearance": [0.6410709609845509, 0.17727153705158416, 0.18552855924978687], "label": "cup", "confidence": 0.0, "stamp_ns": 1793357882753464654, "received_at": 96854.984469022, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030229919097816582, 0.0249039857842131], "source": "sam_appearance_depth_tracking_from_visual_lock"}, "time": 1793357883.0693257, "sim_time": 287.158348309}, {"state": "SUCCESS", "attempt": 1, "wall_time": 1793357883.069414, "monotonic": 96855.291384616, "time": 1793357883.0694184, "sim_time": 287.158348309}], "config": {"optimized_paths": true, "target_label": "cup", "acquire_camera": "observer", "max_attempts": 2, "observation_retries": 3, "verification_frames": 2, "association_distance": 0.075, "appearance_distance": 0.35, "ambiguity_margin": 0.01, "max_observation_age": 8.0, "approach_clearance": 0.18, "viewpoint_offset_xy": [-0.08, 0.0], "observation_mode": "camera_centered", "camera_clearance": 0.38, "min_refinement_area_ratio": 0.55, "tcp_offset": 0.185, "lift_distance": 0.12, "min_lift": 0.06, "place_tolerance_xy": 0.06, "place_tolerance_z": 0.035, "stability_tolerance": 0.015, "safe_z": 0.5, "final_approach_clearance": 0.08, "retreat_clearance": 0.12, "home": [0.45, -0.12, 0.5], "place_surface": [0.49, -0.3, 0.058], "workspace_min": [0.2, -0.5, 0.016], "workspace_max": [0.8, 0.4, 0.15]}, "perception": "yolo_sam", "gripper": {"id": "short_parallel", "label": "SHORT PARALLEL (experimental)", "finger_length_m": 0.055, "open_width_m": 0.06, "travel_per_finger_m": 0.02, "tcp_offset_m": 0.185, "standoff_m": 0.095, "revision": "v3_gap60mm", "command_scale": 0.02564102564102564, "contact_static_friction": 0.8, "contact_dynamic_friction": 0.65}, "ground_truth_evaluation": {"available": true, "target": "cup", "initial": [0.5103265047073364, 0.14002367854118347, 0.03350643441081047], "final": [0.4885390102863312, -0.2995661497116089, 0.0408899262547493], "lifted": true, "max_lift": 0.26111098006367683, "placement_xy_error": 0.0015240462644497137, "placement_height_error": 0.0073834918439388275, "selected_visual_target": "cup", "requested_target": "cup", "target_selection_correct": true, "destination_fixture": null, "placement_xy_limit": 0.06, "task_success": true}, "command": {"instruction": "Pick the cup", "target": "cup", "destination": "marked placement zone", "skill": "pick_and_place", "parser": "explicit demo vocabulary", "display": "Pick the cup; place in the marked zone"}, "detector_classes": ["cup", "banana", "apple"], "detector_confidence": 0.02, "locked_sam_tracking": true, "test_perturb": false}
+[INFO] [1793357885.163565961] [moveit.ros_planning_interface.moveit_cpp]: Deleting MoveItCpp
+[INFO] [1793357885.164193159] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Stopped publishing maintained planning scene.
+[INFO] [1793357885.164693032] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Stopping world geometry monitor
+[INFO] [1793357885.164932457] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Stopping planning scene monitor
+Warning: class_loader.ClassLoader: SEVERE WARNING!!! Attempting to unload library while objects created by this loader exist in the heap! You should delete your objects before attempting to unload the library or destroying the ClassLoader. The library will NOT be unloaded.
+         at line 127 in ./src/class_loader.cpp
+返回码 0；结果目录：/experiment/runs/interactive_20261030_105740_69d6aa87
+arm> {
+  "success": true,
+  "reason": "",
+  "attempts": 1,
+  "lift_verified": true,
+  "elapsed_s": 16.216286283000954,
+  "events": [
+    {
+      "state": "HOME",
+      "attempt": 0,
+      "wall_time": 1793357866.8531966,
+      "monotonic": 96839.07516699,
+      "goal": [
+        0.45,
+        -0.12,
+        0.5
+      ],
+      "time": 1793357866.8532014,
+      "sim_time": 264.591680466
+    },
+    {
+      "state": "ACQUIRE",
+      "attempt": 0,
+      "wall_time": 1793357868.3848882,
+      "monotonic": 96840.606858479,
+      "time": 1793357868.3848934,
+      "sim_time": 267.03334726
+    },
+    {
+      "state": "ACQUIRE",
+      "attempt": 0,
+      "wall_time": 1793357869.1209211,
+      "monotonic": 96841.342891413,
+      "locked_target": {
+        "position": [
+          0.5097800066860092,
+          0.1468436718324504,
+          0.05739985174810016
+        ],
+        "appearance": [
+          0.6,
+          0.19298245614035087,
+          0.20192307692307693
+        ],
+        "label": "cup",
+        "confidence": 0.6900522112846375,
+        "stamp_ns": 1793357868401217295,
+        "received_at": 96840.63040474,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.044055108968742485,
+          0.04647602504400136
+        ],
+        "source": "yolo_world_sam"
+      },
+      "time": 1793357869.1209273,
+      "sim_time": 267.10001393
+    },
+    {
+      "state": "APPROACH",
+      "attempt": 1,
+      "wall_time": 1793357869.121803,
+      "monotonic": 96841.34377389,
+      "goal": [
+        0.49719604434474507,
+        0.029919824818260957,
+        0.4373659814650994
+      ],
+      "time": 1793357869.1218078,
+      "sim_time": 267.10001393
+    },
+    {
+      "state": "REFINE",
+      "attempt": 1,
+      "wall_time": 1793357870.0756414,
+      "monotonic": 96842.297611802,
+      "time": 1793357870.0756462,
+      "sim_time": 269.566680725
+    },
+    {
+      "state": "APPROACH",
+      "attempt": 1,
+      "wall_time": 1793357870.2848902,
+      "monotonic": 96842.506860544,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.32179480919199355
+      ],
+      "time": 1793357870.2848954,
+      "sim_time": 269.633347395
+    },
+    {
+      "state": "DESCEND",
+      "attempt": 1,
+      "wall_time": 1793357871.238449,
+      "monotonic": 96843.460420084,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.24179480919199356
+      ],
+      "time": 1793357871.238454,
+      "sim_time": 271.166680809
+    },
+    {
+      "state": "CLOSE",
+      "attempt": 1,
+      "wall_time": 1793357872.3377645,
+      "monotonic": 96844.559735057,
+      "time": 1793357872.33777,
+      "sim_time": 272.700014222
+    },
+    {
+      "state": "LIFT",
+      "attempt": 1,
+      "wall_time": 1793357873.0705304,
+      "monotonic": 96845.29250069,
+      "goal": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.5
+      ],
+      "time": 1793357873.0705352,
+      "sim_time": 273.766680944
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357874.900048,
+      "monotonic": 96847.122018872,
+      "expected": [
+        0.510842680519897,
+        0.13961896808505475,
+        0.31499999999999995
+      ],
+      "time": 1793357874.900054,
+      "sim_time": 276.30001441
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357875.207623,
+      "monotonic": 96847.429592902,
+      "evidence": {
+        "position": [
+          0.5294647406608055,
+          0.13047954096987546,
+          0.3127350432237535
+        ],
+        "appearance": [
+          0.6608695652173913,
+          0.16393442622950818,
+          0.17592592592592593
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357874915742320,
+        "received_at": 96847.143175777,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.015618774027610915,
+          0.019717033817514523
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357875.2076283,
+      "sim_time": 276.383347747
+    },
+    {
+      "state": "VERIFY_LIFT",
+      "attempt": 1,
+      "wall_time": 1793357876.1715415,
+      "monotonic": 96848.393511938,
+      "evidence": {
+        "position": [
+          0.535359074540571,
+          0.13133056392993303,
+          0.3173123562641643
+        ],
+        "appearance": [
+          0.6666666666666666,
+          0.1594779504722243,
+          0.1725705329153605
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357875900170802,
+        "received_at": 96848.127815537,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.021056919228658266,
+          0.021794949015889395
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357876.1715474,
+      "sim_time": 277.758347819
+    },
+    {
+      "state": "TRANSFER",
+      "attempt": 1,
+      "wall_time": 1793357876.1716387,
+      "monotonic": 96848.393608812,
+      "goal": [
+        0.49,
+        -0.3,
+        0.5
+      ],
+      "time": 1793357876.1716428,
+      "sim_time": 277.758347819
+    },
+    {
+      "state": "PLACE",
+      "attempt": 1,
+      "wall_time": 1793357877.6899335,
+      "monotonic": 96849.911904431,
+      "goal": [
+        0.49,
+        -0.3,
+        0.243
+      ],
+      "time": 1793357877.6899395,
+      "sim_time": 280.200014613
+    },
+    {
+      "state": "RELEASE",
+      "attempt": 1,
+      "wall_time": 1793357880.9654536,
+      "monotonic": 96853.187423876,
+      "time": 1793357880.9654582,
+      "sim_time": 284.666681513
+    },
+    {
+      "state": "RETREAT",
+      "attempt": 1,
+      "wall_time": 1793357881.4314225,
+      "monotonic": 96853.653393253,
+      "goal": [
+        0.49,
+        -0.3,
+        0.363
+      ],
+      "time": 1793357881.431427,
+      "sim_time": 285.333348214
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357882.417776,
+      "monotonic": 96854.6397465,
+      "expected": [
+        0.49,
+        -0.3,
+        0.058
+      ],
+      "time": 1793357882.4177814,
+      "sim_time": 286.666681617
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357882.7402546,
+      "monotonic": 96854.962225482,
+      "evidence": {
+        "position": [
+          0.4960602383357192,
+          -0.29948397212973676,
+          0.0605119812861874
+        ],
+        "appearance": [
+          0.6491228070175439,
+          0.1694915254237288,
+          0.18439716312056736
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357882434471932,
+        "received_at": 96854.662279613,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.02943015467253457,
+          0.024006418357399306
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357882.7402594,
+      "sim_time": 286.733348287
+    },
+    {
+      "state": "VERIFY_PLACE",
+      "attempt": 1,
+      "wall_time": 1793357883.0693197,
+      "monotonic": 96855.291289908,
+      "evidence": {
+        "position": [
+          0.4963773334856081,
+          -0.299651620315766,
+          0.06036557826027973
+        ],
+        "appearance": [
+          0.6410709609845509,
+          0.17727153705158416,
+          0.18552855924978687
+        ],
+        "label": "cup",
+        "confidence": 0.0,
+        "stamp_ns": 1793357882753464654,
+        "received_at": 96854.984469022,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.030229919097816582,
+          0.0249039857842131
+        ],
+        "source": "sam_appearance_depth_tracking_from_visual_lock"
+      },
+      "time": 1793357883.0693257,
+      "sim_time": 287.158348309
+    },
+    {
+      "state": "SUCCESS",
+      "attempt": 1,
+      "wall_time": 1793357883.069414,
+      "monotonic": 96855.291384616,
+      "time": 1793357883.0694184,
+      "sim_time": 287.158348309
+    }
+  ],
+  "config": {
+    "optimized_paths": true,
+    "target_label": "cup",
+    "acquire_camera": "observer",
+    "max_attempts": 2,
+    "observation_retries": 3,
+    "verification_frames": 2,
+    "association_distance": 0.075,
+    "appearance_distance": 0.35,
+    "ambiguity_margin": 0.01,
+    "max_observation_age": 8.0,
+    "approach_clearance": 0.18,
+    "viewpoint_offset_xy": [
+      -0.08,
+      0.0
+    ],
+    "observation_mode": "camera_centered",
+    "camera_clearance": 0.38,
+    "min_refinement_area_ratio": 0.55,
+    "tcp_offset": 0.185,
+    "lift_distance": 0.12,
+    "min_lift": 0.06,
+    "place_tolerance_xy": 0.06,
+    "place_tolerance_z": 0.035,
+    "stability_tolerance": 0.015,
+    "safe_z": 0.5,
+    "final_approach_clearance": 0.08,
+    "retreat_clearance": 0.12,
+    "home": [
+      0.45,
+      -0.12,
+      0.5
+    ],
+    "place_surface": [
+      0.49,
+      -0.3,
+      0.058
+    ],
+    "workspace_min": [
+      0.2,
+      -0.5,
+      0.016
+    ],
+    "workspace_max": [
+      0.8,
+      0.4,
+      0.15
+    ]
+  },
+  "perception": "yolo_sam",
+  "gripper": {
+    "id": "short_parallel",
+    "label": "SHORT PARALLEL (experimental)",
+    "finger_length_m": 0.055,
+    "open_width_m": 0.06,
+    "travel_per_finger_m": 0.02,
+    "tcp_offset_m": 0.185,
+    "standoff_m": 0.095,
+    "revision": "v3_gap60mm",
+    "command_scale": 0.02564102564102564,
+    "contact_static_friction": 0.8,
+    "contact_dynamic_friction": 0.65
+  },
+  "ground_truth_evaluation": {
+    "available": true,
+    "target": "cup",
+    "initial": [
+      0.5103265047073364,
+      0.14002367854118347,
+      0.03350643441081047
+    ],
+    "final": [
+      0.4885390102863312,
+      -0.2995661497116089,
+      0.0408899262547493
+    ],
+    "lifted": true,
+    "max_lift": 0.26111098006367683,
+    "placement_xy_error": 0.0015240462644497137,
+    "placement_height_error": 0.0073834918439388275,
+    "selected_visual_target": "cup",
+    "requested_target": "cup",
+    "target_selection_correct": true,
+    "destination_fixture": null,
+    "placement_xy_limit": 0.06,
+    "task_success": true
+  },
+  "command": {
+    "instruction": "Pick the cup",
+    "target": "cup",
+    "destination": "marked placement zone",
+    "skill": "pick_and_place",
+    "parser": "explicit demo vocabulary",
+    "display": "Pick the cup; place in the marked zone"
+  },
+  "detector_classes": [
+    "cup",
+    "banana",
+    "apple"
+  ],
+  "detector_confidence": 0.02,
+  "locked_sam_tracking": true,
+  "test_perturb": false
+}
+arm> {
+  "target": "cup",
+  "classes": "auto",
+  "destination": "cup_zone",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": "/experiment/runs/interactive_20261030_105740_69d6aa87"
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm>

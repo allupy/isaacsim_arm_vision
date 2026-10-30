@@ -1,0 +1,159 @@
+not found: "/ros2_ws/install/moveit_task_constructor_core/share/moveit_task_constructor_core/local_setup.bash"
+视觉机械臂交互台 · 与 feedback_runner.py 共用闭环执行流程
+
+d / grasp     完整闭环抓放
+o / s         只观察：保存同步图像、检测和定位结果，不创建运动控制器
+t apple       选目标；也支持 t 红色方块
+p fruit_zone  放置区：fruit_zone / cup_zone / plate / cup_stand
+p x y z       自定义放置表面世界坐标（米）
+c apple cup   自定义检测词；c auto 恢复按目标选择
+plan          显示下一次执行参数，不运行
+status        配置、相机状态与最近结果目录
+last          最近结果与独立评分
+v             相机快照（有桌面时显示，否则打印路径）
+h / help      帮助
+q / quit      退出
+运行中 Ctrl+C 请求闭环保持并结束任务，然后返回菜单。
+
+{
+  "target": "apple",
+  "classes": "auto",
+  "destination": "auto",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": null
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm> {
+  "target": "apple",
+  "classes": "auto",
+  "destination": "auto",
+  "place_surface": null,
+  "gripper": "short_parallel",
+  "observe_only": false,
+  "blocked": false,
+  "last": null
+}
+相机状态：/experiment/sim/latest.json；存在，请结合时间戳判断新鲜度
+arm> 执行：/usr/bin/python3 -u /experiment/src/feedback_runner.py --output /experiment/runs/interactive_20261030_105144_559d7252 --config /experiment/src/config/default_config.yaml --perception yolo_sam --instruction 'Pick the apple' --det-confidence 0.02 --tcp-offset 0.185 --safe-z .5 --expected-gripper short_parallel --locked-sam-tracking --home 0.45 -0.12 0.5 --place-surface 0.35 -0.3 0.052 --startup-timeout 180.0 --sensor-timeout 25.0 --observe-only
+Creating new Ultralytics Settings v0.0.6 file ✅
+View Ultralytics Settings with 'yolo settings' or at '/root/.config/Ultralytics/settings.json'
+Update Settings with 'yolo settings key=value', i.e. 'yolo settings runs_dir=path/to/dir'. For help see https://docs.ultralytics.com/quickstart/#ultralytics-settings.
+✅ 模型加载完成，检测类别: cup, banana, apple
+🔄 正在加载SAM模型 (vit_b): /ros2_ws/vision/sam_vit_b_01ec64.pth
+/usr/local/lib/python3.10/dist-packages/segment_anything/build_sam.py:105: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  state_dict = torch.load(f)
+✅ SAM模型加载完成
+{"kind": "observation", "camera": "wrist", "stamp_ns": 1793357514079483586, "perception": "yolo_sam", "wait_wall_s": 0.057785982004133984, "processing_wall_s": 1.2198779719910817, "candidates": [], "time": 1793357515.3474116}
+{"kind": "observation", "camera": "observer", "stamp_ns": 1793357515363612913, "perception": "yolo_sam", "wait_wall_s": 0.06401046800601762, "processing_wall_s": 0.39003487800073344, "candidates": [{"position": [0.521442662079465, 0.12142117329856672, 0.05690882213570392], "appearance": [0.6091097308488613, 0.1896551724137931, 0.20175438596491227], "label": "cup", "confidence": 0.6804385185241699, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030702471343935667, 0.018689558434189013], "source": "yolo_world_sam"}, {"position": [0.6381166021891815, -0.02160732423176337, 0.011243833558355565], "appearance": [0.3425925925925926, 0.33240997229916897, 0.325], "label": "banana", "confidence": 0.12188035994768143, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [0.9999660395296858, 0.00824134620768099, 0.0, 0.0], "extent_xy": [0.08726281853010587, 0.021154546656900308], "source": "yolo_world_sam"}, {"position": [0.5279167398227603, -0.18318756658680507, 0.04792742191864563], "appearance": [0.7007346693987706, 0.13961217452146535, 0.15986111111111112], "label": "apple", "confidence": 0.09517504274845123, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030802470661360104, 0.027471058331605375], "source": "yolo_world_sam"}], "time": 1793357515.801728}
+EXPERIMENT_RESULT {"mode": "observe_only", "perception": "yolo_sam", "observations": {"wrist": [], "observer": [{"position": [0.521442662079465, 0.12142117329856672, 0.05690882213570392], "appearance": [0.6091097308488613, 0.1896551724137931, 0.20175438596491227], "label": "cup", "confidence": 0.6804385185241699, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030702471343935667, 0.018689558434189013], "source": "yolo_world_sam"}, {"position": [0.6381166021891815, -0.02160732423176337, 0.011243833558355565], "appearance": [0.3425925925925926, 0.33240997229916897, 0.325], "label": "banana", "confidence": 0.12188035994768143, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [0.9999660395296858, 0.00824134620768099, 0.0, 0.0], "extent_xy": [0.08726281853010587, 0.021154546656900308], "source": "yolo_world_sam"}, {"position": [0.5279167398227603, -0.18318756658680507, 0.04792742191864563], "appearance": [0.7007346693987706, 0.13961217452146535, 0.15986111111111112], "label": "apple", "confidence": 0.09517504274845123, "stamp_ns": 1793357515363612913, "received_at": 96487.591440708, "quat": [1.0, 0.0, 0.0, 0.0], "extent_xy": [0.030802470661360104, 0.027471058331605375], "source": "yolo_world_sam"}]}, "command": {"instruction": "Pick the apple", "target": "apple", "destination": "marked placement zone", "skill": "pick_and_place", "parser": "explicit demo vocabulary", "display": "Pick the apple; place in the marked zone"}, "detector_classes": ["cup", "banana", "apple"], "detector_confidence": 0.02, "locked_sam_tracking": true, "test_perturb": false}
+返回码 0；结果目录：/experiment/runs/interactive_20261030_105144_559d7252
+arm> {
+  "mode": "observe_only",
+  "perception": "yolo_sam",
+  "observations": {
+    "wrist": [],
+    "observer": [
+      {
+        "position": [
+          0.521442662079465,
+          0.12142117329856672,
+          0.05690882213570392
+        ],
+        "appearance": [
+          0.6091097308488613,
+          0.1896551724137931,
+          0.20175438596491227
+        ],
+        "label": "cup",
+        "confidence": 0.6804385185241699,
+        "stamp_ns": 1793357515363612913,
+        "received_at": 96487.591440708,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.030702471343935667,
+          0.018689558434189013
+        ],
+        "source": "yolo_world_sam"
+      },
+      {
+        "position": [
+          0.6381166021891815,
+          -0.02160732423176337,
+          0.011243833558355565
+        ],
+        "appearance": [
+          0.3425925925925926,
+          0.33240997229916897,
+          0.325
+        ],
+        "label": "banana",
+        "confidence": 0.12188035994768143,
+        "stamp_ns": 1793357515363612913,
+        "received_at": 96487.591440708,
+        "quat": [
+          0.9999660395296858,
+          0.00824134620768099,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.08726281853010587,
+          0.021154546656900308
+        ],
+        "source": "yolo_world_sam"
+      },
+      {
+        "position": [
+          0.5279167398227603,
+          -0.18318756658680507,
+          0.04792742191864563
+        ],
+        "appearance": [
+          0.7007346693987706,
+          0.13961217452146535,
+          0.15986111111111112
+        ],
+        "label": "apple",
+        "confidence": 0.09517504274845123,
+        "stamp_ns": 1793357515363612913,
+        "received_at": 96487.591440708,
+        "quat": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "extent_xy": [
+          0.030802470661360104,
+          0.027471058331605375
+        ],
+        "source": "yolo_world_sam"
+      }
+    ]
+  },
+  "command": {
+    "instruction": "Pick the apple",
+    "target": "apple",
+    "destination": "marked placement zone",
+    "skill": "pick_and_place",
+    "parser": "explicit demo vocabulary",
+    "display": "Pick the apple; place in the marked zone"
+  },
+  "detector_classes": [
+    "cup",
+    "banana",
+    "apple"
+  ],
+  "detector_confidence": 0.02,
+  "locked_sam_tracking": true,
+  "test_perturb": false
+}
+arm>

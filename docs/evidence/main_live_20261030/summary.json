@@ -1,0 +1,105 @@
+{
+  "tested_commit": "5c2e5b14d17903a5d4116ba34343dce24bfa09d5",
+  "date_timezone": "2026-10-30 Asia/Shanghai",
+  "runtime_root": "/home/aluupy/project_sync_backups/20261030/main_validation",
+  "ros_domain_id": 200,
+  "sim_gpu": 2,
+  "control_gpu": 3,
+  "runs": [
+    {
+      "id": "interactive_20261030_105144_559d7252",
+      "mode": "observe_only",
+      "success": null,
+      "reason": null,
+      "evaluation": null
+    },
+    {
+      "id": "interactive_20261030_105223_75d8fe9a",
+      "mode": "grasp",
+      "success": false,
+      "reason": "interrupted",
+      "evaluation": null
+    },
+    {
+      "id": "interactive_20261030_105648_46376335",
+      "mode": "grasp",
+      "success": true,
+      "reason": "",
+      "evaluation": {
+        "available": true,
+        "target": "apple",
+        "initial": [
+          0.517998218536377,
+          -0.17019273340702057,
+          0.03165604546666145
+        ],
+        "final": [
+          0.36204469203948975,
+          -0.30309394001960754,
+          0.030752258375287056
+        ],
+        "lifted": true,
+        "max_lift": 0.2635287754237652,
+        "placement_xy_error": 0.012435717557546785,
+        "placement_height_error": 0.0009037870913743973,
+        "selected_visual_target": "apple",
+        "requested_target": "apple",
+        "target_selection_correct": true,
+        "destination_fixture": null,
+        "placement_xy_limit": 0.06,
+        "task_success": true
+      }
+    },
+    {
+      "id": "interactive_20261030_105740_69d6aa87",
+      "mode": "grasp",
+      "success": true,
+      "reason": "",
+      "evaluation": {
+        "available": true,
+        "target": "cup",
+        "initial": [
+          0.5103265047073364,
+          0.14002367854118347,
+          0.03350643441081047
+        ],
+        "final": [
+          0.4885390102863312,
+          -0.2995661497116089,
+          0.0408899262547493
+        ],
+        "lifted": true,
+        "max_lift": 0.26111098006367683,
+        "placement_xy_error": 0.0015240462644497137,
+        "placement_height_error": 0.0073834918439388275,
+        "selected_visual_target": "cup",
+        "requested_target": "cup",
+        "target_selection_correct": true,
+        "destination_fixture": null,
+        "placement_xy_limit": 0.06,
+        "task_success": true
+      }
+    }
+  ],
+  "videos": [
+    {
+      "path": "docs/media/main_apple_20261030.mp4",
+      "frames": 645,
+      "fps": 25.0,
+      "duration_s": 25.8,
+      "playback": "sampled at 25 fps using recorded wall-clock timestamps"
+    },
+    {
+      "path": "docs/media/main_cup_20261030.mp4",
+      "frames": 653,
+      "fps": 25.0,
+      "duration_s": 26.12,
+      "playback": "sampled at 25 fps using recorded wall-clock timestamps"
+    }
+  ],
+  "limitations": [
+    "Cup is visibly lying on its side after release; current success metric excludes orientation.",
+    "One apple and one cup transport run; not a success-rate estimate.",
+    "One initial grasp invocation interrupted before motion after non-atomic recording request upload crashed simulator."
+  ]
+}
